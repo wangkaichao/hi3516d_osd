@@ -23,6 +23,7 @@
  * @date 2019-06-02
  */
 #include <stdio.h>
+#include <string.h>
 
 #include "osd.h"
 
@@ -42,6 +43,25 @@ OSD_ERR_EN OSD_GetBuildVersion(unsigned char *pu8Version)
     printf("%s(pu8Version:%p)\n", __FUNCTION__, pu8Version);
     ASSERT_PARAM(pu8Version != NULL);
     //TODO
+    const unsigned char au8Months[12][4] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
+    unsigned char au8TmpDate[16] = {0};
+    unsigned char au8Month[4] = {0};
+    int s32Year, s32Month, s32Day;
+
+    snprintf(au8TmpDate, sizeof(au8TmpDate), "%s", __DATE__); //"Sep 18 2010"
+    sscanf(au8TmpDate,"%s %d %d", au8Month, &s32Day, &s32Year);
+
+    int i;
+    for (i = 0; i < 12; i++) {
+        if (strncmp(au8Month, au8Months[i], 3) == 0) {
+            s32Month = i + 1;
+            break;
+        }
+    }
+
+    snprintf(pu8Version, 32, "%04d-%02d-%02d %s", s32Year, s32Month, s32Day, __TIME__);
+    printf("%s\n", pu8Version);
+
     return ERR_SUCCESS;
 }
 
