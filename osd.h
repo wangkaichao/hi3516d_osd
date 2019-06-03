@@ -54,10 +54,10 @@ typedef struct {
     unsigned int    u32LineNum;
 
 #define MAX_TEXT_LINE_NUM        (4)             /**< 文字最大行数上限 */
-    unsigned int    astStartPoint[MAX_TEXT_LINE_NUM];
+    POINT_ST        astStartPoint[MAX_TEXT_LINE_NUM];
 
 #define MAX_LINE_CHAR_NUM        (32)            /**< 一行最大英文上限，汉字减倍 */
-    unsigned char   au8TextCode[MAX_LINE_CHAR_NUM + 1];
+    unsigned char   au8TextCode[MAX_TEXT_LINE_NUM][MAX_LINE_CHAR_NUM + 1];
    
 } TEXT_ST;
 
@@ -74,7 +74,7 @@ typedef struct {
     POINT_ST        astPoint[MAX_POLYGON_POINT_NUM];
 
     unsigned int    u32BgColor;             /**< RGB888 */
-    unsigned int    u32Alpha;
+    unsigned int    u32Alpha;               /**< [0, 255] */
 
     SOLID_PROP_ST   stSolidProp;
     TEXT_ST         stText;
@@ -210,6 +210,15 @@ OSD_ERR_EN OSD_Set(const OSD_ST *pstOsd);
  */
 OSD_ERR_EN OSD_GetAll(OSD_ST astOsd[MAX_POLYGON_POINT_NUM + MAX_HOTSPOT_POINT_NUM]);
 
+
+/**
+ * @brief print osd log
+ *
+ * @param[in] pstOsd 打印指针所指结构数据
+ *
+ * @return 0:Success, !0:Failed
+ */
+OSD_ERR_EN OSD_Dump(const OSD_ST *pstOsd);
 
 #ifdef __cplusplus
 }

@@ -114,6 +114,82 @@ OSD_ERR_EN OSD_GetAll(OSD_ST astOsd[MAX_POLYGON_POINT_NUM + MAX_HOTSPOT_POINT_NU
     return ERR_SUCCESS;
 }
 
+OSD_ERR_EN OSD_Dump(const OSD_ST *pstOsd)
+{
+    OSD_ERR_EN enRet = ERR_SUCCESS;
+    unsigned char au8Buf[512];
+    unsigned int u32Index = 0;
+    size_t size = sizeof(au8Buf);
+
+    ASSERT_PARAM(pstOsd != NULL);
+
+    switch (pstOsd->enType)
+    {
+        unsigned char *pu8Str;
+        unsigned int u32Tmp;
+
+        case OSD_POLYGON:
+        {
+            POLYGON_ST *pst = (POLYGON_ST *)&pstOsd->unData;
+
+            pu8Str = "OSD_POLYGON";
+            u32Index += snprintf(au8Buf + u32Index, size, "Type:%s\n", pu8Str);
+            u32Index += snprintf(au8Buf + u32Index, size, "Id:%u\n", pst->u32Id);
+            u32Index += snprintf(au8Buf + u32Index, size, "Enable:%u\n", pst->u32Enable);
+            u32Index += snprintf(au8Buf + u32Index, size, "PointNum:%u\n", pst->u32PointNum);
+            for (u32Tmp = 0; u32Tmp < pst->u32PointNum && u32Tmp < MAX_POLYGON_POINT_NUM; ++u32Tmp)
+                u32Index += snprintf(au8Buf + u32Index, size, "[%u,%u] ", 
+                        pst->astPoint[u32Tmp].u32X, pst->astPoint[u32Tmp].u32Y);
+            u32Index += snprintf(au8Buf + u32Index, size, "\nBgColor:0x%03X\n", pst->u32BgColor);
+            u32Index += snprintf(au8Buf + u32Index, size, "Alpha:%u\n", pst->u32Alpha);
+
+            u32Index += snprintf(au8Buf + u32Index, size, "SolidColor:0x%03X\n", pst->stSolidProp.u32Color);
+            u32Index += snprintf(au8Buf + u32Index, size, "SolidThick:%u\n", pst->stSolidProp.u32Thick);
+
+            u32Index += snprintf(au8Buf + u32Index, size, "TextColor:0x%03X\n", pst->stText.u32Color);
+            u32Index += snprintf(au8Buf + u32Index, size, "TextLineNum:%u\n", pst->stText.u32LineNum);
+            for (u32Tmp = 0; u32Tmp < pst->stText.u32LineNum && u32Tmp < MAX_TEXT_LINE_NUM; ++u32Tmp)
+            {
+                u32Index += snprintf(au8Buf + u32Index, size, "Line:%d [%u,%u] %s\n", u32Tmp,
+                        pst->stText.astStartPoint[u32Tmp].u32X, pst->stText.astStartPoint[u32Tmp].u32Y, 
+                        pst->stText.au8TextCode[u32Tmp]);
+            }
+            break;
+        }
+        case OSD_HOTSPOT:
+        {
+            HOTSPOT_ST *pst = (HOTSPOT_ST *)&pstOsd->unData;
+
+            pu8Str = "OSD_HOTSPOT";
+            u32Index += snprintf(au8Buf + u32Index, size, "Type:%s\n", pu8Str);
+            u32Index += snprintf(au8Buf + u32Index, size, "Id:%u\n", pst->u32Id);
+            u32Index += snprintf(au8Buf + u32Index, size, "Enable:%u\n", pst->u32Enable);
+            u32Index += snprintf(au8Buf + u32Index, size, "PointNum:%u\n", pst->u32PointNum);
+            for (u32Tmp = 0; u32Tmp < pst->u32PointNum && u32Tmp < MAX_HOTSPOT_POINT_NUM; ++u32Tmp)
+                u32Index += snprintf(au8Buf + u32Index, size, "[%u,%u] ", 
+                        pst->astPoint[u32Tmp].u32X, pst->astPoint[u32Tmp].u32Y);
+            u32Index += snprintf(au8Buf + u32Index, size, "\nColor:0x%03X\n", pst->u32Color);
+
+            u32Index += snprintf(au8Buf + u32Index, size, "TextColor:0x%03X\n", pst->stText.u32Color);
+            u32Index += snprintf(au8Buf + u32Index, size, "TextLineNum:%u\n", pst->stText.u32LineNum);
+            for (u32Tmp = 0; u32Tmp < pst->stText.u32LineNum && u32Tmp < MAX_TEXT_LINE_NUM; ++u32Tmp)
+            {
+                u32Index += snprintf(au8Buf + u32Index, size, "Line:%d [%u,%u] %s\n", u32Tmp,
+                        pst->stText.astStartPoint[u32Tmp].u32X, pst->stText.astStartPoint[u32Tmp].u32Y, 
+                        pst->stText.au8TextCode[u32Tmp]);
+            }
+            break;
+        }
+        default:
+            pu8Str = "err:unknow osd type\n";
+            enRet = ERR_INVALID_PARAM;
+            break; 
+    }
+
+    printf("%s\n", au8Buf);
+    return enRet;
+}
+
 int main(int argc, char *argv[])
 {
     unsigned char au8Ver[32];
