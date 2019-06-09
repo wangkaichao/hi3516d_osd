@@ -35,16 +35,6 @@ typedef struct {
     unsigned int    u32Y;
 } POINT_ST;
 
-
-/**
- * @brief 边框属性
- */
-typedef struct {
-    unsigned int    u32Color;
-    unsigned int    u32Thick;               /**< 边框宽度[2,8] 2对齐 */
-} SOLID_PROP_ST;
-
-
 /**
  * @brief 文字属性
  */
@@ -58,14 +48,13 @@ typedef struct {
 
 #define MAX_LINE_CHAR_NUM        (32)            /**< 一行最大英文上限，汉字减倍 */
     unsigned char   au8TextCode[MAX_TEXT_LINE_NUM][MAX_LINE_CHAR_NUM + 1];
-   
 } TEXT_ST;
 
 /**
  * @brief 多边形
  */
 typedef struct {
-#define MAX_PLOYGON_NUM         (5)
+#define MAX_POLYGON_NUM         (5)
     unsigned int    u32Id;
     unsigned int    u32Enable;              /**< 显示控制 */
     unsigned int    u32PointNum;
@@ -73,10 +62,11 @@ typedef struct {
 #define MAX_POLYGON_POINT_NUM   (10)        /**< 多边形最大边数上限 */
     POINT_ST        astPoint[MAX_POLYGON_POINT_NUM];
 
-    unsigned int    u32BgColor;             /**< RGB888 */
-    unsigned int    u32Alpha;               /**< [0, 255] */
+    //unsigned int    u32BgColor;             /**< RGB888 */
+    //unsigned int    u32Alpha;               /**< [0, 255] */
+    unsigned int    u32Color;
+    unsigned int    u32Thick; 
 
-    SOLID_PROP_ST   stSolidProp;
     TEXT_ST         stText;
 } POLYGON_ST;
 
@@ -114,7 +104,7 @@ typedef union {
     HOTSPOT_ST  stHotspot;
 } OSD_DATA_UN;
 
-
+#define MAX_OSD_NUM (MAX_POLYGON_NUM+ MAX_HOTSPOT_NUM)
 /**
  * @brief 最终接口
  */
@@ -208,7 +198,7 @@ OSD_ERR_EN OSD_Set(const OSD_ST *pstOsd);
  *
  * @return 0:Success, !0:Failed
  */
-OSD_ERR_EN OSD_GetAll(OSD_ST astOsd[MAX_POLYGON_POINT_NUM + MAX_HOTSPOT_POINT_NUM]);
+OSD_ERR_EN OSD_GetAll(OSD_ST astOsd[MAX_OSD_NUM]);
 
 
 /**
