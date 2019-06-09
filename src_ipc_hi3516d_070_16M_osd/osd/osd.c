@@ -24,9 +24,15 @@
  */
 #include <stdio.h>
 #include <string.h>
+#include <pthread.h>
+#include <sys/prctl.h>
 
 #include "osd.h"
 
+#include "hi_comm_vgs.h"
+#include "hi_comm_video.h"
+#include "hi_comm_vpss.h"
+#include "mpi_vgs.h"
 
 #define ASSERT_PARAM(exp) do { \
     if (!(exp)) { \
@@ -37,6 +43,82 @@
 
 #define PARAM_USE(p)    (p = p)
 
+static int gs32OsdThreadRunning = 0;
+static pthread_t gstOsdthreadId = 0;
+
+static void *osd_thread(void *arg);
+
+
+static void *osd_thread(void *arg)
+{
+    HI_S32 s32Ret;
+    VIDEO_FRAME_INFO_S stExtFrmInfo;
+    VPSS_GRP VpssGrp = 0;
+    VPSS_CHN VpssChn = 1;
+    HI_S32 s32MilliSec = 2000;
+
+    VGS_HANDLE VgsHandle = -1;
+    VGS_TASK_ATTR_S stVgsTask;
+
+    printf("%s(%p) running ...\n", __FUNCTION__, arg);
+    prctl(PR_SET_NAME, __FUNCTION__);
+
+    s32Ret = HI_MPI_VPSS_SetDepth(VpssGrp, VpssChn, 3);
+    if (s32Ret != HI_SUCCESS) {
+        printf("%s %d err: HI_MPI_VPSS_SetDepth", __FUNCTION__, __LINE__);
+        return NULL;
+    }
+
+    while (gs32OsdThreadRunning) {
+        VGS_DRAW_LINE_S astVgsDrawLine[4] = {
+            {{2, 2}, {20, 2}, 2, 0xFF0000},
+            {{20, 2}, {20, 20}, 2, 0xFF0000},
+            {{20, 20}, {2, 20}, 2, 0xFF0000},
+            {{2, 20}, {2, 2}, 2, 0xFF0000},
+        };
+
+        s32Ret = HI_MPI_VPSS_GetChnFrame(VpssGrp, VpssChn, &stExtFrmInfo, s32MilliSec);
+        if (HI_SUCCESS != s32Ret) {
+            printf("%s %d err:HI_MPI_VPSS_GetChnFrame failed, VPSS_GRP(%d), VPSS_CHN(%d), Error(%#x)!\n",
+                    __FUNCTION__, __LINE__, VpssGrp, VpssChn, s32Ret);
+            continue;
+        }
+
+        s32Ret = HI_MPI_VGS_BeginJob(&VgsHandle);
+        if (s32Ret != HI_SUCCESS) {
+            printf("%s %d err:Vgs begin job fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
+            goto EXT_RELEASE;
+        }
+
+        memcpy(&stVgsTask.stImgIn, &stExtFrmInfo, sizeof(VIDEO_FRAME_INFO_S));
+        memcpy(&stVgsTask.stImgOut, &stExtFrmInfo, sizeof(VIDEO_FRAME_INFO_S));
+
+        s32Ret = HI_MPI_VGS_AddDrawLineTaskArray(VgsHandle, &stVgsTask, astVgsDrawLine, 4);  
+        if (s32Ret != HI_SUCCESS) {
+            printf("%s %d err:HI_MPI_VGS_AddDrawLineTaskArray fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
+            HI_MPI_VGS_CancelJob(VgsHandle);
+            goto EXT_RELEASE;
+        }
+
+
+        s32Ret = HI_MPI_VGS_EndJob(VgsHandle);
+        if (s32Ret != HI_SUCCESS) {
+            printf("%s %d err:HI_MPI_VGS_EndJob fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
+            HI_MPI_VGS_CancelJob(VgsHandle);
+            goto EXT_RELEASE;
+        }
+
+EXT_RELEASE:
+        s32Ret = HI_MPI_VPSS_ReleaseChnFrame(VpssGrp,VpssChn, &stExtFrmInfo);
+        if (HI_SUCCESS != s32Ret) {
+            printf("%s %d err:HI_MPI_VPSS_ReleaseChnFrame fail,Grp(%d) chn(%d),Error(%#x)\n",
+                    __FUNCTION__, __LINE__, VpssGrp, VpssChn, s32Ret);
+        }
+    }
+
+    printf("%s exit ...\n", __FUNCTION__);
+    return NULL;
+}
 
 OSD_ERR_EN OSD_GetBuildVersion(unsigned char *pu8Version)
 {
@@ -67,10 +149,19 @@ OSD_ERR_EN OSD_GetBuildVersion(unsigned char *pu8Version)
 
 OSD_ERR_EN OSD_Start(void *p)
 {
+    OSD_ERR_EN enRet = ERR_SUCCESS;
+
     printf("%s(p:%p)\n", __FUNCTION__, p);
     PARAM_USE(p);
     //TODO
-    return ERR_SUCCESS;
+    gs32OsdThreadRunning = 1;
+    if (pthread_create(&gstOsdthreadId, NULL, osd_thread, NULL) < 0) {
+        printf("%s %d err: create thread failedi\n", __FUNCTION__, __LINE__);
+        enRet = ERR_IO_FAILED;
+        return enRet;
+    }
+
+    return enRet;
 }
 
 OSD_ERR_EN OSD_Stop(void *p)
@@ -78,6 +169,8 @@ OSD_ERR_EN OSD_Stop(void *p)
     printf("%s(p:%p)\n", __FUNCTION__, p);
     PARAM_USE(p);
     //TODO
+
+    gs32OsdThreadRunning = 0;
     return ERR_SUCCESS;
 }
 

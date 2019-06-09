@@ -50,7 +50,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 # system library
 link_libraries("-lpthread -lrt -ldl -lm -lc -lstdc++")
-#link_libraries("-lpthread -ldl -lm -lc -lstdc++")
+link_libraries("-lmpi")
 
 set(LIBRARY_OUTPUT_PATH ${TOP}/lib)
 set(EXECUTABLE_OUTPUT_PATH ${TOP}/bin)

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <unistd.h>
 
 #include "osd.h"
 
@@ -14,6 +15,7 @@ int main(int argc, char *argv[])
     OSD_Get(astOsd);
     OSD_Set(astOsd);
 
+    pause();
     OSD_Stop(NULL);
 
     return 0;
