@@ -5,7 +5,7 @@
 
 # set top directory path
 #exec_program("dirname `pwd`" OUTPUT_VARIABLE TOP)
-set(TOP "/opt/source/work/hi3516d_osd/src_ipc_hi3516d_070_16M_osd")
+set(TOP "/mnt/work2/hi3516d_osd/src_ipc_hi3516d_070_16M_osd")
 
 set(CMAKE_SYSTEM_NAME Linux)
 # specify the cross compiler
