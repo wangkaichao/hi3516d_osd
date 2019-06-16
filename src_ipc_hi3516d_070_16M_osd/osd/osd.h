@@ -40,10 +40,10 @@ typedef struct {
  */
 typedef struct {
 //    unsigned int    u32Id;
-    unsigned int    u32Color;
+    unsigned int    u32Color;       //ARGB8888
     unsigned int    u32LineNum;
 
-#define MAX_TEXT_LINE_NUM        (4)             /**< 文字最大行数上限 */
+#define MAX_TEXT_LINE_NUM        (5)             /**< 文字最大行数上限 */
     POINT_ST        astStartPoint[MAX_TEXT_LINE_NUM];
 
 #define MAX_LINE_CHAR_NUM        (32)            /**< 一行最大英文上限，汉字减倍 */

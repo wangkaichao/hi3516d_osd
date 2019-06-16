@@ -5,7 +5,7 @@
 
 # set top directory path
 #exec_program("dirname `pwd`" OUTPUT_VARIABLE TOP)
-set(TOP "/mnt/work2/hi3516d_osd/src_ipc_hi3516d_070_16M_osd")
+set(TOP "/opt/source/work/hi3516d_osd/src_ipc_hi3516d_070_16M_osd")
 
 set(CMAKE_SYSTEM_NAME Linux)
 # specify the cross compiler
@@ -35,11 +35,9 @@ link_directories(
 )
 
 # set compile flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=cortex-a7 -mfloat-abi=softfp -mfpu=neon-vfpv4 -mno-unaligned-access -fno-aggressive-loop-optimizations")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99") 
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mcpu=cortex-a7 -mfloat-abi=softfp -mfpu=neon-vfpv4 -mno-unaligned-access -fno-aggressive-loop-optimizations")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -mcpu=cortex-a7 -mfloat-abi=softfp -mfpu=neon-vfpv4 -ffunction-sections")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mno-unaligned-access -fno-aggressive-loop-optimizations") 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DARCH=arm -DHIARCH=hi3516a -DHICHIP=0x3516A100 ") 
 
 # add 3rd libraries here
 #link_libraries("-Wl,-Bstatic")
@@ -50,7 +48,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 # system library
 link_libraries("-lpthread -lrt -ldl -lm -lc -lstdc++")
-link_libraries("-lmpi")
+#link_libraries("-lmpi")
+link_libraries("-lmpi -lVoiceEngine -lupvqe -ldnvqe")
 
 set(LIBRARY_OUTPUT_PATH ${TOP}/lib)
 set(EXECUTABLE_OUTPUT_PATH ${TOP}/bin)
