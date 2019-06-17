@@ -36,30 +36,30 @@ typedef struct {
 } POINT_ST;
 
 /**
- * @brief æ–‡å­—å±æ€§
+ * @brief ÎÄ×ÖÊôĞÔ
  */
 typedef struct {
 //    unsigned int    u32Id;
     unsigned int    u32Color;       //ARGB8888
     unsigned int    u32LineNum;
 
-#define MAX_TEXT_LINE_NUM        (5)             /**< æ–‡å­—æœ€å¤§è¡Œæ•°ä¸Šé™ */
+#define MAX_TEXT_LINE_NUM        (5)             /**< ÎÄ×Ö×î´óĞĞÊıÉÏÏŞ */
     POINT_ST        astStartPoint[MAX_TEXT_LINE_NUM];
 
-#define MAX_LINE_CHAR_NUM        (32)            /**< ä¸€è¡Œæœ€å¤§è‹±æ–‡ä¸Šé™ï¼Œæ±‰å­—å‡å€ */
+#define MAX_LINE_CHAR_NUM        (32)            /**< Ò»ĞĞ×î´óÓ¢ÎÄÉÏÏŞ£¬ºº×Ö¼õ±¶ */
     unsigned char   au8TextCode[MAX_TEXT_LINE_NUM][MAX_LINE_CHAR_NUM + 1];
 } TEXT_ST;
 
 /**
- * @brief å¤šè¾¹å½¢
+ * @brief ¶à±ßĞÎ
  */
 typedef struct {
 #define MAX_POLYGON_NUM         (5)
     unsigned int    u32Id;
-    unsigned int    u32Enable;              /**< æ˜¾ç¤ºæ§åˆ¶ */
+    unsigned int    u32Enable;              /**< ÏÔÊ¾¿ØÖÆ */
     unsigned int    u32PointNum;
 
-#define MAX_POLYGON_POINT_NUM   (10)        /**< å¤šè¾¹å½¢æœ€å¤§è¾¹æ•°ä¸Šé™ */
+#define MAX_POLYGON_POINT_NUM   (10)        /**< ¶à±ßĞÎ×î´ó±ßÊıÉÏÏŞ */
     POINT_ST        astPoint[MAX_POLYGON_POINT_NUM];
 
     //unsigned int    u32BgColor;             /**< RGB888 */
@@ -71,7 +71,7 @@ typedef struct {
 } POLYGON_ST;
 
 /**
- * @brief çƒ­ç‚¹å±æ€§
+ * @brief ÈÈµãÊôĞÔ
  */
 typedef struct {
 #define MAX_HOTSPOT_NUM               (5)
@@ -79,7 +79,7 @@ typedef struct {
     unsigned int    u32Enable;
     unsigned int    u32PointNum;
 
-#define MAX_HOTSPOT_POINT_NUM         (8)   /**< åå­—æ˜Ÿæœ€å¤§ä¸Šé™ */
+#define MAX_HOTSPOT_POINT_NUM         (8)   /**< Ê®×ÖĞÇ×î´óÉÏÏŞ */
     POINT_ST        astPoint[MAX_HOTSPOT_POINT_NUM];
 
     unsigned int    u32Color;
@@ -88,7 +88,7 @@ typedef struct {
 } HOTSPOT_ST;
 
 /**
- * @brief æ¥å£ç±»å‹
+ * @brief ½Ó¿ÚÀàĞÍ
  */
 typedef enum {
     OSD_POLYGON,
@@ -97,7 +97,7 @@ typedef enum {
 } OSD_TYPE_EN;
 
 /**
- * @brief æ¥å£æ•°æ®
+ * @brief ½Ó¿ÚÊı¾İ
  */
 typedef union {
     POLYGON_ST  stPolygon;
@@ -106,7 +106,7 @@ typedef union {
 
 #define MAX_OSD_NUM (MAX_POLYGON_NUM+ MAX_HOTSPOT_NUM)
 /**
- * @brief æœ€ç»ˆæ¥å£
+ * @brief ×îÖÕ½Ó¿Ú
  */
 typedef struct {
     OSD_TYPE_EN enType;
@@ -123,27 +123,27 @@ typedef enum {
 } OSD_ERR_EN;
 
 /**
- * @brief è·å–åº“çš„ç¼–è¯‘ç‰ˆæœ¬ä¿¡æ¯
+ * @brief »ñÈ¡¿âµÄ±àÒë°æ±¾ĞÅÏ¢
  *
- * @param[out] pu8Version è°ƒç”¨è‡³å°‘è¦32å­—èŠ‚ç©ºé—´
+ * @param[out] pu8Version µ÷ÓÃÖÁÉÙÒª32×Ö½Ú¿Õ¼ä
  *
  * @return 0:Success, !0:Failed
  */
 OSD_ERR_EN OSD_GetBuildVersion(unsigned char *pu8Version);
 
 /**
- * @brief OSDå¼€å§‹
+ * @brief OSD¿ªÊ¼
  *
- * @param[in] p é¢„ç•™ï¼Œæš‚ä¸ç”¨
+ * @param[in] p Ô¤Áô£¬Ôİ²»ÓÃ
  *
  * @return 0:Success, !0:Failed
  */
 OSD_ERR_EN OSD_Start(void *p);
 
 /**
- * @brief OSDå…³é—­
+ * @brief OSD¹Ø±Õ
  *
- * @param[in] p é¢„ç•™ï¼Œæš‚ä¸ç”¨
+ * @param[in] p Ô¤Áô£¬Ôİ²»ÓÃ
  *
  * @return 0:Success, !0:Failed
  */
@@ -151,7 +151,7 @@ OSD_ERR_EN OSD_Stop(void *p);
 
 
 /**
- * @brief è·å–å¯ç”¨çš„id.
+ * @brief »ñÈ¡¿ÉÓÃµÄid.
  *
  * @param[in]  enType OSD type
  * @param[out] pId id
@@ -161,7 +161,7 @@ OSD_ERR_EN OSD_Stop(void *p);
 OSD_ERR_EN OSD_GetActiveId(OSD_TYPE_EN enType, unsigned int *pId);
 
 /**
- * @brief é€šè¿‡Idè·å–OSDçš„æ•°æ®
+ * @brief Í¨¹ıId»ñÈ¡OSDµÄÊı¾İ
  *
  * @param[in]  pstOsd->enType OSD type.
  * @param[in]  pstOsd->unData.stPolygon.u32Id  OSD data id.
@@ -204,7 +204,7 @@ OSD_ERR_EN OSD_GetAll(OSD_ST astOsd[MAX_OSD_NUM]);
 /**
  * @brief print osd log
  *
- * @param[in] pstOsd æ‰“å°æŒ‡é’ˆæ‰€æŒ‡ç»“æ„æ•°æ®
+ * @param[in] pstOsd ´òÓ¡Ö¸ÕëËùÖ¸½á¹¹Êı¾İ
  *
  * @return 0:Success, !0:Failed
  */

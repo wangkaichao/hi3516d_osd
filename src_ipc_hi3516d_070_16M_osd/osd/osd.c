@@ -37,6 +37,7 @@
 #include "hi_comm_vgs.h"
 #include "hi_comm_video.h"
 #include "mpi_sys.h"
+#include "mpi_vpss.h"
 #include "mpi_vgs.h"
 
 #include "osd.h"
@@ -76,7 +77,7 @@ static OSD_ST           gastOsd[MAX_OSD_NUM];
 static OSD_ST           gastOsdTmp[MAX_OSD_NUM];
 
 static BITMAP_ST        gstBitmap[MAX_OSD_NUM][MAX_TEXT_LINE_NUM];
-static pthread_mutex_t  gstBitmapdMutex = PTHREAD_MUTEX_INITIALIZER;
+//static pthread_mutex_t  gstBitmapdMutex = PTHREAD_MUTEX_INITIALIZER;
 
 static char             gacPath[128] = "/opt/user/osd.cfg";
 
@@ -86,7 +87,7 @@ static void     osd_create(const unsigned char *u8Str, unsigned int u32Color, HI
 
 static void osd_cfg_init(const char *path)
 {
-    int i = 0;
+    int i = 0, j = 0;
     FILE *fp = NULL;
 
     memset(gastOsd, 0, sizeof(gastOsd));
@@ -133,6 +134,33 @@ static void osd_cfg_init(const char *path)
     for (i = 0; i < MAX_OSD_NUM; ++i) {
         OSD_Dump(&gastOsd[i]);
     }
+
+	pthread_mutex_lock(&gstOsdMutex);
+    for (i = 0; i < MAX_OSD_NUM; ++i) {
+        if (OSD_POLYGON == gastOsd[i].enType && gastOsd[i].unData.stPolygon.u32Enable) {
+            // malloc new data
+            for (j = 0; j < gastOsd[i].unData.stPolygon.stText.u32LineNum; ++j) {
+                osd_create(gastOsd[i].unData.stPolygon.stText.au8TextCode[j],
+                           gastOsd[i].unData.stPolygon.stText.u32Color,
+                           &gstBitmap[i][j].Phyaddr,
+                           &gstBitmap[i][j].Viraddr,
+                           &gstBitmap[i][j].u32Width,
+                           &gstBitmap[i][j].u32Height);
+            }
+        }
+        else if (OSD_HOTSPOT == gastOsd[i].enType && gastOsd[i].unData.stHotspot.u32Enable) {
+            // malloc new data
+            for (j = 0; j < gastOsd[i].unData.stHotspot.stText.u32LineNum; ++j) {
+                osd_create(gastOsd[i].unData.stHotspot.stText.au8TextCode[j],
+                           gastOsd[i].unData.stHotspot.stText.u32Color,
+                           &gstBitmap[i][j].Phyaddr,
+                           &gstBitmap[i][j].Viraddr,
+                           &gstBitmap[i][j].u32Width,
+                           &gstBitmap[i][j].u32Height);
+            }
+        }
+    }
+    pthread_mutex_unlock(&gstOsdMutex);
 }
 
 static void *osd_thread(void *arg)
@@ -148,7 +176,7 @@ static void *osd_thread(void *arg)
     VGS_DRAW_LINE_S astVgsDrawLine[MAX_POLYGON_NUM][MAX_POLYGON_POINT_NUM];
     VGS_DRAW_LINE_S astVgsDrawCrossStar[MAX_HOTSPOT_NUM][MAX_HOTSPOT_POINT_NUM * 2];
     VGS_ADD_OSD_S astVgsText[MAX_OSD_NUM][MAX_TEXT_LINE_NUM];
-    int i, j, s32PolygonCnt = 0, s32HotspotCnt = 0, s32VgsTextCnt = 0;
+    int i, j, s32PolygonCnt = 0, s32HotspotCnt = 0;
 
 #if DEBUG_VGS_TIME
     struct timeval tm[2];
@@ -208,7 +236,7 @@ static void *osd_thread(void *arg)
                     continue;
                 }
 
-                // 杈规
+                // 边框
                 for (j = 0; j < pst->u32PointNum; ++j) {
                     astVgsDrawLine[s32PolygonCnt][j].stStartPoint.s32X = (int)ALIGN_UP(pst->astPoint[j].u32X, 2);
                     astVgsDrawLine[s32PolygonCnt][j].stStartPoint.s32Y = (int)ALIGN_UP(pst->astPoint[j].u32Y, 2);
@@ -238,7 +266,7 @@ static void *osd_thread(void *arg)
                     astVgsText[i][j].u32BgColor = pst->stText.u32Color;
                     astVgsText[i][j].enPixelFmt = PIXEL_FORMAT_RGB_8888;
                     astVgsText[i][j].u32PhyAddr = gstBitmap[i][j].Phyaddr;
-                    astVgsText[i][j].u32Stride = gstBitmap[i][j].u32Width;
+                    astVgsText[i][j].u32Stride = gstBitmap[i][j].u32Width * 4;
                     astVgsText[i][j].u32BgAlpha = 0xFF;
                     astVgsText[i][j].u32FgAlpha = 0xFF;
                 }
@@ -302,7 +330,7 @@ static void *osd_thread(void *arg)
                     astVgsText[i][j].u32BgColor = pst->stText.u32Color;
                     astVgsText[i][j].enPixelFmt = PIXEL_FORMAT_RGB_8888;
                     astVgsText[i][j].u32PhyAddr = gstBitmap[i][j].Phyaddr;
-                    astVgsText[i][j].u32Stride = gstBitmap[i][j].u32Width;
+                    astVgsText[i][j].u32Stride = gstBitmap[i][j].u32Width * 4;
                     astVgsText[i][j].u32BgAlpha = 0xFF;
                     astVgsText[i][j].u32FgAlpha = 0xFF;
                 }
@@ -343,18 +371,22 @@ EXT_RELEASE:
     return NULL;
 }
 
-static void osd_create(const unsigned char *u8Str, unsigned int u32ARGB8888, HI_U32 *Phyaddr, HI_VOID **Viraddr, HI_U32 *pu32Width, HI_U32 *pu32Height)
+static void osd_create(const unsigned char *pu8Str, unsigned int u32ARGB8888, HI_U32 *Phyaddr, HI_VOID **Viraddr, HI_U32 *pu32Width, HI_U32 *pu32Height)
 {
-    if (u8Str == NULL || Phyaddr == NULL || Viraddr == NULL || pu32Width == NULL || pu32Height == NULL) {
+    if (pu8Str == NULL || Phyaddr == NULL || Viraddr == NULL || pu32Width == NULL || pu32Height == NULL) {
         printf("%s %d err: invailed param.\n", __FUNCTION__, __LINE__);
         return;
     }
 
     unsigned int **ppu32Buffer = (unsigned int **)Viraddr;
 
-    // 鑾峰彇瀛楁ā鍒皃u8Font
-    int s32Len = strlen(u8Str);
-    printf("%s %d str:%s, len:%d.\n", __FUNCTION__, __LINE__, u8Str, s32Len);
+    // 获取字模到pu8Font
+    int s32Len = strlen((const char *)pu8Str);
+    printf("%s %d str:%s, len:%d.\n", __FUNCTION__, __LINE__, pu8Str, s32Len);
+    if (s32Len <= 0) {
+    	printf("%s %d err: u8Str len=0.\n", __FUNCTION__, __LINE__);
+        return;
+    }
 
     unsigned char *pu8Font = (unsigned char *)malloc(s32Len * FONT_ASCI_SIZE);
 
@@ -382,12 +414,11 @@ static void osd_create(const unsigned char *u8Str, unsigned int u32ARGB8888, HI_
     unsigned char ch1, ch2;
 
     for (i = 0; i < s32Len; ++i) {
-        ch1 = *(u8Str + i);
-        ch2 = i + 1 < s32Len ? *(u8Str + i + 1) : 0;
+        ch1 = *(pu8Str + i);
+        ch2 = i + 1 < s32Len ? *(pu8Str + i + 1) : 0;
 
         if (ch1 < 0xa1) {
             int pos = ch1 * FONT_ASCI_SIZE;
-
             if (fseek(fpAsc, pos, SEEK_SET) != 0) {
                 printf("%s %d err: fseek err.\n", __FUNCTION__, __LINE__);
 
@@ -409,7 +440,6 @@ static void osd_create(const unsigned char *u8Str, unsigned int u32ARGB8888, HI_
         }
         else if (ch2 >= 0xa1) {
             int pos = (94 * (ch1 - 0xa1) + (ch2 - 0xa1)) * FONT_ASCI_SIZE * 2;
-
             if (fseek(fpCn, pos, SEEK_SET) != 0) {
                 printf("%s %d err: fseek err.\n", __FUNCTION__, __LINE__);
 
@@ -418,10 +448,12 @@ static void osd_create(const unsigned char *u8Str, unsigned int u32ARGB8888, HI_
                 fclose(fpCn);
                 return;
             }
-
+#define MACRO_ZIKU 	(1)
+#if MACRO_ZIKU
             unsigned char tmp[FONT_ASCI_SIZE * 2];
             size_t rdblk = fread(tmp, FONT_ASCI_SIZE * 2, 1, fpCn);
-
+#endif
+			//size_t rdblk = fread(pu8Font + i * FONT_ASCI_SIZE * 2, FONT_ASCI_SIZE * 2, 1, fpCn);
             if (rdblk != 1) {
                 printf("%s %d err: fread err.\n", __FUNCTION__, __LINE__);
                 free(pu8Font);
@@ -429,12 +461,13 @@ static void osd_create(const unsigned char *u8Str, unsigned int u32ARGB8888, HI_
                 fclose(fpCn);
                 return;
             }
-
+            //
+#if MACRO_ZIKU
             for (j = 0; j < FONT_ASCI_SIZE; j++) {
               *(pu8Font + i * FONT_ASCI_SIZE + j) = tmp[j * 2];
               *(pu8Font + i * FONT_ASCI_SIZE + FONT_ASCI_SIZE + j) = tmp[j * 2 + 1];
             }
-
+#endif
             ++i;
         }
     }
@@ -442,8 +475,8 @@ static void osd_create(const unsigned char *u8Str, unsigned int u32ARGB8888, HI_
     fclose(fpAsc);
     fclose(fpCn);
 
-    // 鐢熸垚Bitmap
-    *pu32Height = 16;
+    // 生成Bitmap
+    *pu32Height = FONT_ASCI_SIZE;
     *pu32Width = s32Len * 8;
 
     HI_S32 s32Ret = HI_MPI_SYS_MmzAlloc(Phyaddr, Viraddr, NULL, NULL, (*pu32Width) * (*pu32Height) * 4);
@@ -453,7 +486,7 @@ static void osd_create(const unsigned char *u8Str, unsigned int u32ARGB8888, HI_
       return;
     }
 
-    // 閬嶅巻鍗曚釜瀛楁ā
+    // 遍历单个字模
     for (i = 0; i < s32Len; i++) {
       int offset_x = i * 8;
 
@@ -474,23 +507,23 @@ OSD_ERR_EN OSD_GetBuildVersion(unsigned char *pu8Version)
     printf("%s(pu8Version:%p)\n", __FUNCTION__, pu8Version);
     ASSERT_PARAM(pu8Version != NULL);
     //TODO
-    const unsigned char au8Months[12][4] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
+    unsigned char au8Months[12][4] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
     unsigned char au8TmpDate[16] = {0};
     unsigned char au8Month[4] = {0};
     int s32Year, s32Month, s32Day;
 
-    snprintf(au8TmpDate, sizeof(au8TmpDate), "%s", __DATE__); //"Sep 18 2010"
-    sscanf(au8TmpDate,"%s %d %d", au8Month, &s32Day, &s32Year);
+    snprintf((char *)au8TmpDate, sizeof(au8TmpDate), "%s", __DATE__); //"Sep 18 2010"
+    sscanf((char *)au8TmpDate, "%s %d %d", au8Month, &s32Day, &s32Year);
 
     int i;
     for (i = 0; i < 12; i++) {
-        if (strncmp(au8Month, au8Months[i], 3) == 0) {
+        if (strncmp((char *)au8Month, (char *)au8Months[i], 3) == 0) {
             s32Month = i + 1;
             break;
         }
     }
 
-    snprintf(pu8Version, 32, "%04d-%02d-%02d %s", s32Year, s32Month, s32Day, __TIME__);
+    snprintf((char *)pu8Version, 32, "%04d-%02d-%02d %s", s32Year, s32Month, s32Day, __TIME__);
     printf("%s\n", pu8Version);
 
     return ERR_SUCCESS;
@@ -698,8 +731,6 @@ OSD_ERR_EN OSD_Set(const OSD_ST *pstOsd)
 
 OSD_ERR_EN OSD_GetAll(OSD_ST astOsd[MAX_OSD_NUM])
 {
-    int i;
-
     //printf("%s(pstOsd:%p)\n", __FUNCTION__, astOsd);
     ASSERT_PARAM(astOsd != NULL);
 
@@ -730,25 +761,25 @@ OSD_ERR_EN OSD_Dump(const OSD_ST *pstOsd)
         {
             POLYGON_ST *pst = (POLYGON_ST *)&pstOsd->unData;
 
-            pu8Str = "OSD_POLYGON";
-            u32Index += snprintf(au8Buf + u32Index, size, "Type:%s\n", pu8Str);
-            u32Index += snprintf(au8Buf + u32Index, size, "Id:%u\n", pst->u32Id);
-            u32Index += snprintf(au8Buf + u32Index, size, "Enable:%u\n", pst->u32Enable);
-            u32Index += snprintf(au8Buf + u32Index, size, "PointNum:%u\n", pst->u32PointNum);
+            pu8Str = (unsigned char *)"OSD_POLYGON";
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "Type:%s\n", pu8Str);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "Id:%u\n", pst->u32Id);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "Enable:%u\n", pst->u32Enable);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "PointNum:%u\n", pst->u32PointNum);
             for (u32Tmp = 0; u32Tmp < pst->u32PointNum && u32Tmp < MAX_POLYGON_POINT_NUM; ++u32Tmp)
-                u32Index += snprintf(au8Buf + u32Index, size, "[%u,%u] ",
+                u32Index += snprintf((char *)au8Buf + u32Index, size, "[%u,%u] ",
                         pst->astPoint[u32Tmp].u32X, pst->astPoint[u32Tmp].u32Y);
             //u32Index += snprintf(au8Buf + u32Index, size, "\nBgColor:0x%03X\n", pst->u32BgColor);
             //u32Index += snprintf(au8Buf + u32Index, size, "Alpha:%u\n", pst->u32Alpha);
 
-            u32Index += snprintf(au8Buf + u32Index, size, "\nSolidColor:0x%03X\n", pst->u32Color);
-            u32Index += snprintf(au8Buf + u32Index, size, "SolidThick:%u\n", pst->u32Thick);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "\nSolidColor:0x%03X\n", pst->u32Color);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "SolidThick:%u\n", pst->u32Thick);
 
-            u32Index += snprintf(au8Buf + u32Index, size, "TextColor:0x%03X\n", pst->stText.u32Color);
-            u32Index += snprintf(au8Buf + u32Index, size, "TextLineNum:%u\n", pst->stText.u32LineNum);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "TextColor:0x%03X\n", pst->stText.u32Color);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "TextLineNum:%u\n", pst->stText.u32LineNum);
             for (u32Tmp = 0; u32Tmp < pst->stText.u32LineNum && u32Tmp < MAX_TEXT_LINE_NUM; ++u32Tmp)
             {
-                u32Index += snprintf(au8Buf + u32Index, size, "Line:%d [%u,%u] %s\n", u32Tmp,
+                u32Index += snprintf((char *)au8Buf + u32Index, size, "Line:%d [%u,%u] %s\n", u32Tmp,
                         pst->stText.astStartPoint[u32Tmp].u32X, pst->stText.astStartPoint[u32Tmp].u32Y,
                         pst->stText.au8TextCode[u32Tmp]);
             }
@@ -758,28 +789,28 @@ OSD_ERR_EN OSD_Dump(const OSD_ST *pstOsd)
         {
             HOTSPOT_ST *pst = (HOTSPOT_ST *)&pstOsd->unData;
 
-            pu8Str = "OSD_HOTSPOT";
-            u32Index += snprintf(au8Buf + u32Index, size, "Type:%s\n", pu8Str);
-            u32Index += snprintf(au8Buf + u32Index, size, "Id:%u\n", pst->u32Id);
-            u32Index += snprintf(au8Buf + u32Index, size, "Enable:%u\n", pst->u32Enable);
-            u32Index += snprintf(au8Buf + u32Index, size, "PointNum:%u\n", pst->u32PointNum);
+            pu8Str = (unsigned char *)"OSD_HOTSPOT";
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "Type:%s\n", pu8Str);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "Id:%u\n", pst->u32Id);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "Enable:%u\n", pst->u32Enable);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "PointNum:%u\n", pst->u32PointNum);
             for (u32Tmp = 0; u32Tmp < pst->u32PointNum && u32Tmp < MAX_HOTSPOT_POINT_NUM; ++u32Tmp)
-                u32Index += snprintf(au8Buf + u32Index, size, "[%u,%u] ",
+                u32Index += snprintf((char *)au8Buf + u32Index, size, "[%u,%u] ",
                         pst->astPoint[u32Tmp].u32X, pst->astPoint[u32Tmp].u32Y);
-            u32Index += snprintf(au8Buf + u32Index, size, "\nColor:0x%03X\n", pst->u32Color);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "\nColor:0x%03X\n", pst->u32Color);
 
-            u32Index += snprintf(au8Buf + u32Index, size, "TextColor:0x%03X\n", pst->stText.u32Color);
-            u32Index += snprintf(au8Buf + u32Index, size, "TextLineNum:%u\n", pst->stText.u32LineNum);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "TextColor:0x%03X\n", pst->stText.u32Color);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "TextLineNum:%u\n", pst->stText.u32LineNum);
             for (u32Tmp = 0; u32Tmp < pst->stText.u32LineNum && u32Tmp < MAX_TEXT_LINE_NUM; ++u32Tmp)
             {
-                u32Index += snprintf(au8Buf + u32Index, size, "Line:%d [%u,%u] %s\n", u32Tmp,
+                u32Index += snprintf((char *)au8Buf + u32Index, size, "Line:%d [%u,%u] %s\n", u32Tmp,
                         pst->stText.astStartPoint[u32Tmp].u32X, pst->stText.astStartPoint[u32Tmp].u32Y,
                         pst->stText.au8TextCode[u32Tmp]);
             }
             break;
         }
         default:
-            pu8Str = "err:unknow osd type\n";
+            pu8Str = (unsigned char *)"err:unknow osd type\n";
             enRet = ERR_INVALID_PARAM;
             break;
     }
