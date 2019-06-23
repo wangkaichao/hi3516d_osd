@@ -40,11 +40,11 @@ typedef struct {
  */
 typedef struct {
 //    unsigned int    u32Id;
-    unsigned int    u32Color;       //ARGB8888
     unsigned int    u32LineNum;
 
 #define MAX_TEXT_LINE_NUM        (5)             /**< 文字最大行数上限 */
     POINT_ST        astStartPoint[MAX_TEXT_LINE_NUM];
+    unsigned int    u32Color[MAX_TEXT_LINE_NUM];       /**< 字体颜色格式：ARGB8888 值越小，越透明 */
 
 #define MAX_LINE_CHAR_NUM        (32)            /**< 一行最大英文上限，汉字减倍 */
     unsigned char   au8TextCode[MAX_TEXT_LINE_NUM][MAX_LINE_CHAR_NUM + 1];
@@ -62,10 +62,9 @@ typedef struct {
 #define MAX_POLYGON_POINT_NUM   (10)        /**< 多边形最大边数上限 */
     POINT_ST        astPoint[MAX_POLYGON_POINT_NUM];
 
-    //unsigned int    u32BgColor;             /**< RGB888 */
-    //unsigned int    u32Alpha;               /**< [0, 255] */
-    unsigned int    u32Color;
-    unsigned int    u32Thick; 
+    unsigned int    u32BgColor;             /**< 背景颜色格式ARGB8888 值越小，越透明 */
+    unsigned int    u32Color;               /**< 边框颜色格式RGB888，不支持透明度  */
+    unsigned int    u32Thick;               /**< [0,2,4,8] */
 
     TEXT_ST         stText;
 } POLYGON_ST;
@@ -79,10 +78,9 @@ typedef struct {
     unsigned int    u32Enable;
     unsigned int    u32PointNum;
 
-#define MAX_HOTSPOT_POINT_NUM         (8)   /**< 十字星最大上限 */
+#define MAX_HOTSPOT_POINT_NUM         (8)               /**< 十字星最大上限 */
     POINT_ST        astPoint[MAX_HOTSPOT_POINT_NUM];
-
-    unsigned int    u32Color;
+    unsigned int    u32Color[MAX_HOTSPOT_POINT_NUM];    /**< 边框颜色格式RGB888，不支持透明度  */
 
     TEXT_ST         stText;
 } HOTSPOT_ST;
@@ -100,8 +98,8 @@ typedef enum {
  * @brief 接口数据
  */
 typedef union {
-    POLYGON_ST  stPolygon;
-    HOTSPOT_ST  stHotspot;
+    POLYGON_ST  stPolygon;      /**< 多边形 */
+    HOTSPOT_ST  stHotspot;      /**< 热点  */
 } OSD_DATA_UN;
 
 #define MAX_OSD_NUM (MAX_POLYGON_NUM+ MAX_HOTSPOT_NUM)
