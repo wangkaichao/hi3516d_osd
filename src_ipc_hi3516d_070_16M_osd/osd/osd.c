@@ -36,9 +36,12 @@
 #include "hi_comm_vpss.h"
 #include "hi_comm_vgs.h"
 #include "hi_comm_video.h"
+#include "hi_comm_venc.h"
+
 #include "mpi_sys.h"
 #include "mpi_vpss.h"
 #include "mpi_vgs.h"
+#include "mpi_venc.h"
 
 #include "osd.h"
 
@@ -180,6 +183,7 @@ static void *osd_thread(void *arg)
     VIDEO_FRAME_INFO_S stExtFrmInfo;
     VPSS_GRP VpssGrp = 0;
     VPSS_CHN VpssChn = 4;
+    VENC_CHN VeChn   = 0;
     HI_S32 s32MilliSec = -1; //1000;
 
     VGS_HANDLE VgsHandle = -1;
@@ -469,6 +473,12 @@ static void *osd_thread(void *arg)
 #endif
 
 EXT_RELEASE:
+        s32Ret = HI_MPI_VENC_SendFrame(VeChn, &stExtFrmInfo, 40);
+        if (HI_SUCCESS != s32Ret) {
+            printf("%s %d err:HI_MPI_VENC_SendFrame fail, chn(%d),Error(%#x)\n",
+                    __FUNCTION__, __LINE__, VeChn, s32Ret);
+        }
+
         s32Ret = HI_MPI_VPSS_ReleaseChnFrame(VpssGrp, VpssChn, &stExtFrmInfo);
         if (HI_SUCCESS != s32Ret) {
             printf("%s %d err:HI_MPI_VPSS_ReleaseChnFrame fail,Grp(%d) chn(%d),Error(%#x)\n",
@@ -747,7 +757,11 @@ OSD_ERR_EN OSD_Start(void *p)
 
     printf("%s(p:%p)\n", __FUNCTION__, p);
     PARAM_USE(p);
+
     //TODO
+    if (gstOsdthreadId)
+        return enRet;
+
     osd_cfg_init("/opt/user/osd.cfg");
 
     gs32OsdThreadRunning = 1;
@@ -764,9 +778,13 @@ OSD_ERR_EN OSD_Stop(void *p)
 {
     printf("%s(p:%p)\n", __FUNCTION__, p);
     PARAM_USE(p);
+
     //TODO
-    gs32OsdThreadRunning = 0;
-    pthread_join(gstOsdthreadId, NULL);
+    if (gstOsdthreadId) {
+        gs32OsdThreadRunning = 0;
+        pthread_join(gstOsdthreadId, NULL);
+        gstOsdthreadId = 0;
+    }
 
     return ERR_SUCCESS;
 }
