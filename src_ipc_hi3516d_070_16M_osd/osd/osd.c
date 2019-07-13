@@ -232,9 +232,9 @@ static void *osd_thread(void *arg)
 
                 // Polygon
                 if (memcmp(astOsd[i].unData.stPolygon.astPoint, astOsdOld[i].unData.stPolygon.astPoint,
-                    astOsdOld[i].unData.stPolygon.u32PointNum) != 0) {
+                    sizeof(astOsd[i].unData.stPolygon.astPoint)) != 0) {
                     // free old data
-                    if (astOsdOld[i].unData.stPolygon.u32Enable) {
+                    if (astOsdOld[i].unData.stPolygon.u32Enable && gavpVgsPolygonVirtualAddr[i] != NULL) {
                             s32Ret = HI_MPI_SYS_MmzFree(gastVgsPolygon[i].u32PhyAddr, gavpVgsPolygonVirtualAddr[i]);
                             if (s32Ret != HI_SUCCESS) {
                                 printf("%s %d err:HI_MPI_SYS_MmzFree fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
@@ -263,6 +263,9 @@ static void *osd_thread(void *arg)
                     // free old data
                     if (astOsdOld[i].unData.stPolygon.u32Enable) {
                         for (j = 0; j < astOsdOld[i].unData.stPolygon.stText.u32LineNum; ++j) {
+                            if (gavpVgsTextVirtualAddr[i][j] == NULL)
+                                continue;
+
                             s32Ret = HI_MPI_SYS_MmzFree(gastVgsText[i][j].u32PhyAddr, gavpVgsTextVirtualAddr[i][j]);
                             if (s32Ret != HI_SUCCESS) {
                                 printf("%s %d err:HI_MPI_SYS_MmzFree fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
@@ -291,6 +294,9 @@ static void *osd_thread(void *arg)
                     // free old data
                     if (astOsdOld[i].unData.stHotspot.u32Enable) {
                         for (j = 0; j < astOsdOld[i].unData.stHotspot.stText.u32LineNum; ++j) {
+                            if (gavpVgsTextVirtualAddr[i][j] == NULL)
+                                continue;
+
                             s32Ret = HI_MPI_SYS_MmzFree(gastVgsText[i][j].u32PhyAddr, gavpVgsTextVirtualAddr[i][j]);
                             if (s32Ret != HI_SUCCESS) {
                                 printf("%s %d err:HI_MPI_SYS_MmzFree fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
@@ -355,43 +361,50 @@ static void *osd_thread(void *arg)
                 }
 
                 // OSD polygon
-                s32Ret = HI_MPI_VGS_AddOsdTask(VgsHandle, &stVgsTask, &gastVgsPolygon[i]);
-                if (s32Ret != HI_SUCCESS) {
-                    printf("%s %d err:HI_MPI_VGS_AddOsdTask fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
-                    HI_MPI_VGS_CancelJob(VgsHandle);
-                    goto EXT_RELEASE;
-                }
-
-                // 边框
-                unsigned int u32Thick = ALIGN_UP(pst->u32Thick, 2);
-                if (u32Thick != 0) {
-                    for (j = 0; j < pst->u32PointNum; ++j) {
-                        astVgsDrawLine[s32PolygonCnt][j].stStartPoint.s32X = (int)ALIGN_UP(pst->astPoint[j].u32X, 2);
-                        astVgsDrawLine[s32PolygonCnt][j].stStartPoint.s32Y = (int)ALIGN_UP(pst->astPoint[j].u32Y, 2);
-
-                        astVgsDrawLine[s32PolygonCnt][j].stEndPoint.s32X = (int)ALIGN_UP(pst->astPoint[(j + 1) % pst->u32PointNum].u32X, 2);
-                        astVgsDrawLine[s32PolygonCnt][j].stEndPoint.s32Y = (int)ALIGN_UP(pst->astPoint[(j + 1) % pst->u32PointNum].u32Y, 2);
-
-                        astVgsDrawLine[s32PolygonCnt][j].u32Thick = u32Thick > 8 ? 8 : u32Thick;
-                        astVgsDrawLine[s32PolygonCnt][j].u32Color = pst->u32Color & 0xFFFFFF;
-                    }
-
-                    s32Ret = HI_MPI_VGS_AddDrawLineTaskArray(VgsHandle, &stVgsTask, astVgsDrawLine[s32PolygonCnt], pst->u32PointNum);
+                if (pst->u32PointNum > 3 && pst->u32PointNum <= MAX_POLYGON_POINT_NUM && gavpVgsPolygonVirtualAddr[i] != NULL)
+                {
+                    s32Ret = HI_MPI_VGS_AddOsdTask(VgsHandle, &stVgsTask, &gastVgsPolygon[i]);
                     if (s32Ret != HI_SUCCESS) {
-                        printf("%s %d err:HI_MPI_VGS_AddDrawLineTaskArray fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
+                        printf("%s %d err:HI_MPI_VGS_AddOsdTask fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
                         HI_MPI_VGS_CancelJob(VgsHandle);
                         goto EXT_RELEASE;
+                    }
+
+
+                    // 边框
+                    unsigned int u32Thick = ALIGN_UP(pst->u32Thick, 2);
+                    if (u32Thick != 0) {
+                        for (j = 0; j < pst->u32PointNum; ++j) {
+                            astVgsDrawLine[s32PolygonCnt][j].stStartPoint.s32X = (int)ALIGN_UP(pst->astPoint[j].u32X, 2);
+                            astVgsDrawLine[s32PolygonCnt][j].stStartPoint.s32Y = (int)ALIGN_UP(pst->astPoint[j].u32Y, 2);
+
+                            astVgsDrawLine[s32PolygonCnt][j].stEndPoint.s32X = (int)ALIGN_UP(pst->astPoint[(j + 1) % pst->u32PointNum].u32X, 2);
+                            astVgsDrawLine[s32PolygonCnt][j].stEndPoint.s32Y = (int)ALIGN_UP(pst->astPoint[(j + 1) % pst->u32PointNum].u32Y, 2);
+
+                            astVgsDrawLine[s32PolygonCnt][j].u32Thick = u32Thick > 8 ? 8 : u32Thick;
+                            astVgsDrawLine[s32PolygonCnt][j].u32Color = pst->u32Color & 0xFFFFFF;
+                        }
+
+                        s32Ret = HI_MPI_VGS_AddDrawLineTaskArray(VgsHandle, &stVgsTask, astVgsDrawLine[s32PolygonCnt], pst->u32PointNum);
+                        if (s32Ret != HI_SUCCESS) {
+                            printf("%s %d err:HI_MPI_VGS_AddDrawLineTaskArray fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
+                            HI_MPI_VGS_CancelJob(VgsHandle);
+                            goto EXT_RELEASE;
+                        }
                     }
 
                     ++s32PolygonCnt;
                 }
 
                 // Text
-                s32Ret = HI_MPI_VGS_AddOsdTaskArray(VgsHandle, &stVgsTask, gastVgsText[i], pst->stText.u32LineNum);
-                if (s32Ret != HI_SUCCESS) {
-                    printf("%s %d err:HI_MPI_VGS_AddOsdTaskArray fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
-                    HI_MPI_VGS_CancelJob(VgsHandle);
-                    goto EXT_RELEASE;
+                if (pst->stText.u32LineNum > 0 && pst->stText.u32LineNum <= MAX_TEXT_LINE_NUM && gavpVgsTextVirtualAddr[i][0] != NULL)
+                {
+                    s32Ret = HI_MPI_VGS_AddOsdTaskArray(VgsHandle, &stVgsTask, gastVgsText[i], pst->stText.u32LineNum);
+                    if (s32Ret != HI_SUCCESS) {
+                        printf("%s %d err:HI_MPI_VGS_AddOsdTaskArray fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
+                        HI_MPI_VGS_CancelJob(VgsHandle);
+                        goto EXT_RELEASE;
+                    }
                 }
             }
             else if (OSD_HOTSPOT == astOsd[i].enType) {
@@ -414,42 +427,48 @@ static void *osd_thread(void *arg)
                 }
 
                 // Cross Star
-                for (j = 0; j < pst->u32PointNum; ++j) {
-                    unsigned int u32X = ALIGN_UP(pst->astPoint[j].u32X, 2);
-                    unsigned int u32Y = ALIGN_UP(pst->astPoint[j].u32Y, 2);
+                if (pst->u32PointNum > 0 && pst->u32PointNum <= MAX_HOTSPOT_POINT_NUM)
+                {
+                    for (j = 0; j < pst->u32PointNum; ++j) {
+                        unsigned int u32X = ALIGN_UP(pst->astPoint[j].u32X, 2);
+                        unsigned int u32Y = ALIGN_UP(pst->astPoint[j].u32Y, 2);
 
-                    // -
-                    astVgsDrawCrossStar[s32HotspotCnt][j * 2].stStartPoint.s32X = (int)(u32X >= 2 ? u32X - 2 : u32X);
-                    astVgsDrawCrossStar[s32HotspotCnt][j * 2].stStartPoint.s32Y = (int)u32Y;
-                    astVgsDrawCrossStar[s32HotspotCnt][j * 2].stEndPoint.s32X = (int)(u32X + 4);
-                    astVgsDrawCrossStar[s32HotspotCnt][j * 2].stEndPoint.s32Y = (int)u32Y;
-                    astVgsDrawCrossStar[s32HotspotCnt][j * 2].u32Thick = 2;
-                    astVgsDrawCrossStar[s32HotspotCnt][j * 2].u32Color = pst->u32Color[j] & 0xFFFFFF;
+                        // -
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].stStartPoint.s32X = (int)(u32X >= 2 ? u32X - 2 : u32X);
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].stStartPoint.s32Y = (int)u32Y;
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].stEndPoint.s32X = (int)(u32X + 4);
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].stEndPoint.s32Y = (int)u32Y;
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].u32Thick = 2;
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].u32Color = pst->u32Color[j] & 0xFFFFFF;
 
-                    // |
-                    astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stStartPoint.s32X = (int)u32X;
-                    astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stStartPoint.s32Y = (int)(u32Y >= 2 ? u32Y -2 : u32Y);
-                    astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stEndPoint.s32X = (int)u32X;
-                    astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stEndPoint.s32Y = (int)u32Y + 4;
-                    astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].u32Thick = 2;
-                    astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].u32Color = pst->u32Color[j] & 0xFFFFFF;
+                        // |
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stStartPoint.s32X = (int)u32X;
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stStartPoint.s32Y = (int)(u32Y >= 2 ? u32Y -2 : u32Y);
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stEndPoint.s32X = (int)u32X;
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stEndPoint.s32Y = (int)u32Y + 4;
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].u32Thick = 2;
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].u32Color = pst->u32Color[j] & 0xFFFFFF;
+                    }
+
+                    s32Ret = HI_MPI_VGS_AddDrawLineTaskArray(VgsHandle, &stVgsTask, astVgsDrawCrossStar[s32HotspotCnt], pst->u32PointNum * 2);
+                    if (s32Ret != HI_SUCCESS) {
+                        printf("%s %d err:HI_MPI_VGS_AddDrawLineTaskArray fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
+                        HI_MPI_VGS_CancelJob(VgsHandle);
+                        goto EXT_RELEASE;
+                    }
+
+                    ++s32HotspotCnt;
                 }
-
-                s32Ret = HI_MPI_VGS_AddDrawLineTaskArray(VgsHandle, &stVgsTask, astVgsDrawCrossStar[s32HotspotCnt], pst->u32PointNum * 2);
-                if (s32Ret != HI_SUCCESS) {
-                    printf("%s %d err:HI_MPI_VGS_AddDrawLineTaskArray fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
-                    HI_MPI_VGS_CancelJob(VgsHandle);
-                    goto EXT_RELEASE;
-                }
-
-                ++s32HotspotCnt;
 
                 // Text
-                s32Ret = HI_MPI_VGS_AddOsdTaskArray(VgsHandle, &stVgsTask, gastVgsText[i], pst->stText.u32LineNum);
-                if (s32Ret != HI_SUCCESS) {
-                    printf("%s %d err:HI_MPI_VGS_AddOsdTaskArray fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
-                    HI_MPI_VGS_CancelJob(VgsHandle);
-                    goto EXT_RELEASE;
+                if (pst->stText.u32LineNum > 0 && pst->stText.u32LineNum <= MAX_TEXT_LINE_NUM && gavpVgsTextVirtualAddr[i][0] != NULL)
+                {
+                    s32Ret = HI_MPI_VGS_AddOsdTaskArray(VgsHandle, &stVgsTask, gastVgsText[i], pst->stText.u32LineNum);
+                    if (s32Ret != HI_SUCCESS) {
+                        printf("%s %d err:HI_MPI_VGS_AddOsdTaskArray fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
+                        HI_MPI_VGS_CancelJob(VgsHandle);
+                        goto EXT_RELEASE;
+                    }
                 }
             }
             else {
@@ -507,7 +526,7 @@ static void osd_createText(const unsigned char *pu8Str, VGS_ADD_OSD_S *pstVgsOsd
 
     // 获取字模到pu8Font
     int s32Len = strlen((const char *)pu8Str);
-    printf("%s %d str:%s, len:%d.\n", __FUNCTION__, __LINE__, pu8Str, s32Len);
+    //printf("%s %d str:%s, len:%d.\n", __FUNCTION__, __LINE__, pu8Str, s32Len);
     if (s32Len <= 0) {
         printf("%s %d err: u8Str len=0.\n", __FUNCTION__, __LINE__);
         return;
@@ -794,7 +813,7 @@ OSD_ERR_EN OSD_GetActiveId(OSD_TYPE_EN enType, unsigned int *pId)
     OSD_ERR_EN enRet = ERR_SUCCESS;
     int i = 0;
 
-    printf("%s(enType:%d, pId:%p)\n", __FUNCTION__, enType, pId);
+    //printf("%s(enType:%d, pId:%p)\n", __FUNCTION__, enType, pId);
     ASSERT_PARAM(enType >= 0 && enType < OSD_TYPE_NUM);
     ASSERT_PARAM(pId != NULL);
     //TODO
@@ -828,7 +847,7 @@ OSD_ERR_EN OSD_Get(OSD_ST *pstOsd)
     OSD_ERR_EN enRet = ERR_SUCCESS;
     int i = 0;
 
-    printf("%s(pstOsd:%p)\n", __FUNCTION__, pstOsd);
+    //printf("%s(pstOsd:%p)\n", __FUNCTION__, pstOsd);
     ASSERT_PARAM(pstOsd != NULL);
     ASSERT_PARAM(OSD_POLYGON == pstOsd->enType || OSD_HOTSPOT == pstOsd->enType);
 
@@ -866,7 +885,7 @@ OSD_ERR_EN OSD_Set(const OSD_ST *pstOsd)
     int i = 0, j = 0;
     HI_S32 s32Ret;
 
-    printf("%s(pstOsd:%p)\n", __FUNCTION__, pstOsd);
+    //printf("%s(pstOsd:%p)\n", __FUNCTION__, pstOsd);
 
     ASSERT_PARAM(pstOsd != NULL);
     ASSERT_PARAM(OSD_POLYGON == pstOsd->enType || OSD_HOTSPOT == pstOsd->enType);
@@ -941,6 +960,8 @@ OSD_ERR_EN OSD_Dump(const OSD_ST *pstOsd)
     size_t size = sizeof(au8Buf);
 
     ASSERT_PARAM(pstOsd != NULL);
+
+    printf("---------------------------------------------------------------\n");
 
     switch (pstOsd->enType)
     {
