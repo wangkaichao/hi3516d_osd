@@ -882,11 +882,9 @@ OSD_ERR_EN OSD_Get(OSD_ST *pstOsd)
 OSD_ERR_EN OSD_Set(const OSD_ST *pstOsd)
 {
     OSD_ERR_EN enRet = ERR_SUCCESS;
-    int i = 0, j = 0;
-    HI_S32 s32Ret;
+    int i = 0;
 
     //printf("%s(pstOsd:%p)\n", __FUNCTION__, pstOsd);
-
     ASSERT_PARAM(pstOsd != NULL);
     ASSERT_PARAM(OSD_POLYGON == pstOsd->enType || OSD_HOTSPOT == pstOsd->enType);
     if (OSD_POLYGON == pstOsd->enType) {
@@ -935,7 +933,7 @@ OSD_ERR_EN OSD_Set(const OSD_ST *pstOsd)
         fclose(fp); fp = NULL;
     }
 
-    return ERR_SUCCESS;
+    return enRet;
 }
 
 OSD_ERR_EN OSD_GetAll(OSD_ST astOsd[MAX_OSD_NUM])
@@ -980,7 +978,7 @@ OSD_ERR_EN OSD_Dump(const OSD_ST *pstOsd)
             for (u32Tmp = 0; u32Tmp < pst->u32PointNum && u32Tmp < MAX_POLYGON_POINT_NUM; ++u32Tmp)
                 u32Index += snprintf((char *)au8Buf + u32Index, size, "[%u,%u] ",
                         pst->astPoint[u32Tmp].u32X, pst->astPoint[u32Tmp].u32Y);
-            u32Index += snprintf(au8Buf + u32Index, size, "\nBgColor:0x%08X\n", pst->u32BgColor);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "\nBgColor:0x%08X\n", pst->u32BgColor);
             u32Index += snprintf((char *)au8Buf + u32Index, size, "SolidColor:0x%06X\n", pst->u32Color);
             u32Index += snprintf((char *)au8Buf + u32Index, size, "SolidThick:%u\n", pst->u32Thick);
 

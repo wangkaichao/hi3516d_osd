@@ -290,7 +290,7 @@ static void *text_thread(void *pArg)
         stOsd.unData.stPolygon.stText.u32LineNum = 1;
         stOsd.unData.stPolygon.stText.astStartPoint[0] = stPoint;
         stOsd.unData.stPolygon.stText.u32Color[0] = ARGB888_BLACK;  // argb
-        snprintf(stOsd.unData.stPolygon.stText.au8TextCode[0], MAX_LINE_CHAR_NUM, "ÎÂ¶È¼à¿Ø:%d", s32Text++ % 10);
+        snprintf((char *)stOsd.unData.stPolygon.stText.au8TextCode[0], MAX_LINE_CHAR_NUM, "ÎÂ¶È¼à¿Ø:%d", s32Text++ % 10);
 
         OSD_Set(&stOsd);
         usleep(1000 * 1000);
@@ -329,7 +329,7 @@ static void *star_thread(void *pArg)
         stOsd.unData.stHotspot.stText.u32LineNum = 1;
         stOsd.unData.stHotspot.stText.astStartPoint[0] = stTextPoint;
         stOsd.unData.stHotspot.stText.u32Color[0] = ARGB888_RED;  // argb
-        snprintf(stOsd.unData.stHotspot.stText.au8TextCode[0], MAX_LINE_CHAR_NUM, "%u,%u", stPoint.u32X, stPoint.u32Y);
+        snprintf((char *)stOsd.unData.stHotspot.stText.au8TextCode[0], MAX_LINE_CHAR_NUM, "%u,%u", stPoint.u32X, stPoint.u32Y);
 
         OSD_Set(&stOsd);
 

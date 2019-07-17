@@ -1,34 +1,83 @@
 #
-# 364596530@qq.com 2019/06/08
-# cmake file
+# wangkaichao2@163.com 2018-09-16
+# top CMakeList.txt
 #
 
 # minimum cmake version
 cmake_minimum_required(VERSION 3.5.1)
 
-# include top cmakefile.txt
-include(top.cmake)
+# set top directory path
+#exec_program("dirname `pwd`" OUTPUT_VARIABLE TOP)
+set(TOP "/opt/source/work/hi3516d_osd/src_ipc_hi3516d_070_16M_osd")
 
-# project name
-project(demo)
+set(CMAKE_SYSTEM_NAME Linux)
+# specify the cross compiler
+set(CMAKE_C_COMPILER "/opt/hisi-linux/x86-arm/arm-hisiv300-linux/target/bin/arm-hisiv300-linux-gcc")
+set(CMAKE_CXX_COMPILER "/opt/hisi-linux/x86-arm/arm-hisiv300-linux/target/bin/arm-hisiv300-linux-g++")
+#set(CMAKE_C_COMPILER "gcc")
+#set(CMAKE_CXX_COMPILER "g++")
+# where is the target environment 
+seT(CMAKE_FIND_ROOT_PATH ${TOP} /opt/hisi-linux/x86-arm/arm-hisiv300-linux)
 
-# include src files
-aux_source_directory(demo DEMO_SRC)
+# search for programs in the build host directories (not necessary NEVER ONLY BOTH)
+#sET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+# for libraries and headers in the target directories
+seT(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+seT(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 
-# target execute 
-add_executable(demo ${DEMO_SRC})
-target_link_libraries(demo osd_static)
+#set head file path
+include_directories(${TOP}/hisi_070/include)
+include_directories(${TOP}/osd)
 
-################################################################
+#set library path
+link_directories(${TOP}/hisi_070/lib)
+link_directories(${TOP}/lib)
 
-# include src files
-aux_source_directory(osd OSD_SRC)
+# set compile flags
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -mcpu=cortex-a7 -mfloat-abi=softfp -mfpu=neon-vfpv4 -ffunction-sections")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mno-unaligned-access -fno-aggressive-loop-optimizations") 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DARCH=arm -DHIARCH=hi3516a -DHICHIP=0x3516A100 ") 
+
+link_libraries("-Wl,-Bdynamic")
+link_libraries("-lpthread -lrt -ldl -lm -lc -lstdc++")
+
+set(LIBRARY_OUTPUT_PATH ${TOP}/lib)
+set(EXECUTABLE_OUTPUT_PATH ${TOP}/bin)
+
+########################libosd.so/libosd.a#######################################
+
+# add src from path "osd/**.c"
+aux_source_directory(${TOP}/osd OSD_SRC)
 
 # target shared/static library
-#add_library(osd SHARED ${DEMO_SRC})
-#SET_TARGET_PROPERTIES(osd PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+add_library(osd_share SHARED ${OSD_SRC})
+set_target_properties(osd_share PROPERTIES OUTPUT_NAME "osd")
+set_target_properties(osd_share PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+target_link_libraries(osd_share mpi VoiceEngine upvqe dnvqe)
 
 add_library(osd_static STATIC ${OSD_SRC})
 set_target_properties(osd_static PROPERTIES OUTPUT_NAME "osd")
-SET_TARGET_PROPERTIES(osd_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+set_target_properties(osd_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+target_link_libraries(osd_static mpi VoiceEngine upvqe dnvqe)
+######################### demo ######################################
 
+# add src from path "demo/**.c"
+aux_source_directory(${TOP}/demo DEMO_SRC)
+# target execute 
+add_executable(demo_exe ${DEMO_SRC})
+
+option(USE_SHARED "SHARED" ON)
+
+message("========================================")
+if(USE_SHARED)
+    message("output shared library")
+    add_dependencies(demo_exe osd_share)
+else()
+    message("output shared library")
+    add_dependencies(demo_exe osd_static)
+endif()
+message("========================================")
+
+set_target_properties(demo_exe PROPERTIES OUTPUT_NAME "demo")
+set_target_properties(demo_exe PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+target_link_libraries(demo_exe osd)
