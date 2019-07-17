@@ -44,40 +44,46 @@ link_libraries("-lpthread -lrt -ldl -lm -lc -lstdc++")
 set(LIBRARY_OUTPUT_PATH ${TOP}/lib)
 set(EXECUTABLE_OUTPUT_PATH ${TOP}/bin)
 
-########################libosd.so/libosd.a#######################################
+#option(USE_SHARED "SHARED" ON)
 
+message("========================================")
+if(USE_SHARED)
+    message("output shared library")
+else()
+    message("output static library")
+endif()
+message("========================================")
+
+
+########################libosd.so/libosd.a#######################################
 # add src from path "osd/**.c"
 aux_source_directory(${TOP}/osd OSD_SRC)
 
-# target shared/static library
-add_library(osd_share SHARED ${OSD_SRC})
-set_target_properties(osd_share PROPERTIES OUTPUT_NAME "osd")
-set_target_properties(osd_share PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-target_link_libraries(osd_share mpi VoiceEngine upvqe dnvqe)
+if(USE_SHARED)
+    add_library(osd_share SHARED ${OSD_SRC})
+    set_target_properties(osd_share PROPERTIES OUTPUT_NAME "osd")
+    set_target_properties(osd_share PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+    target_link_libraries(osd_share mpi VoiceEngine upvqe dnvqe)
+else()
+    add_library(osd_static STATIC ${OSD_SRC})
+    set_target_properties(osd_static PROPERTIES OUTPUT_NAME "osd")
+    set_target_properties(osd_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+    target_link_libraries(osd_static mpi VoiceEngine upvqe dnvqe)
+endif()
 
-add_library(osd_static STATIC ${OSD_SRC})
-set_target_properties(osd_static PROPERTIES OUTPUT_NAME "osd")
-set_target_properties(osd_static PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-target_link_libraries(osd_static mpi VoiceEngine upvqe dnvqe)
+
 ######################### demo ######################################
-
 # add src from path "demo/**.c"
 aux_source_directory(${TOP}/demo DEMO_SRC)
 # target execute 
 add_executable(demo_exe ${DEMO_SRC})
 
-option(USE_SHARED "SHARED" ON)
-
-message("========================================")
 if(USE_SHARED)
-    message("output shared library")
     add_dependencies(demo_exe osd_share)
 else()
-    message("output shared library")
     add_dependencies(demo_exe osd_static)
 endif()
-message("========================================")
 
 set_target_properties(demo_exe PROPERTIES OUTPUT_NAME "demo")
 set_target_properties(demo_exe PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-target_link_libraries(demo_exe osd)
+target_link_libraries(demo_exe osd mpi VoiceEngine upvqe dnvqe)
