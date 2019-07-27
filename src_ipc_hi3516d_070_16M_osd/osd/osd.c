@@ -191,6 +191,7 @@ static void *osd_thread(void *arg)
     OSD_ST   astOsd[MAX_OSD_NUM];
     OSD_ST   astOsdOld[MAX_OSD_NUM];
     VGS_DRAW_LINE_S astVgsDrawLine[MAX_POLYGON_NUM][MAX_POLYGON_POINT_NUM];
+    VGS_ADD_COVER_S astVgsCover[MAX_POLYGON_NUM];
     VGS_DRAW_LINE_S astVgsDrawCrossStar[MAX_HOTSPOT_NUM][MAX_HOTSPOT_POINT_NUM * 2];
     int i, j, s32PolygonCnt = 0, s32HotspotCnt = 0, s32JobInit = 0;
 
@@ -370,26 +371,45 @@ static void *osd_thread(void *arg)
                         goto EXT_RELEASE;
                     }
 
-
                     // ±ß¿ò
                     unsigned int u32Thick = ALIGN_UP(pst->u32Thick, 2);
+                    u32Thick = u32Thick > 8 ? 8 : u32Thick;
                     if (u32Thick != 0) {
-                        for (j = 0; j < pst->u32PointNum; ++j) {
-                            astVgsDrawLine[s32PolygonCnt][j].stStartPoint.s32X = (int)ALIGN_UP(pst->astPoint[j].u32X, 2);
-                            astVgsDrawLine[s32PolygonCnt][j].stStartPoint.s32Y = (int)ALIGN_UP(pst->astPoint[j].u32Y, 2);
+                    	if (pst->u32PointNum != 4) {
+	                        for (j = 0; j < pst->u32PointNum; ++j) {
+	                            astVgsDrawLine[s32PolygonCnt][j].stStartPoint.s32X = (int)ALIGN_UP(pst->astPoint[j].u32X, 2);
+	                            astVgsDrawLine[s32PolygonCnt][j].stStartPoint.s32Y = (int)ALIGN_UP(pst->astPoint[j].u32Y, 2);
 
-                            astVgsDrawLine[s32PolygonCnt][j].stEndPoint.s32X = (int)ALIGN_UP(pst->astPoint[(j + 1) % pst->u32PointNum].u32X, 2);
-                            astVgsDrawLine[s32PolygonCnt][j].stEndPoint.s32Y = (int)ALIGN_UP(pst->astPoint[(j + 1) % pst->u32PointNum].u32Y, 2);
+	                            astVgsDrawLine[s32PolygonCnt][j].stEndPoint.s32X = (int)ALIGN_UP(pst->astPoint[(j + 1) % pst->u32PointNum].u32X, 2);
+	                            astVgsDrawLine[s32PolygonCnt][j].stEndPoint.s32Y = (int)ALIGN_UP(pst->astPoint[(j + 1) % pst->u32PointNum].u32Y, 2);
 
-                            astVgsDrawLine[s32PolygonCnt][j].u32Thick = u32Thick > 8 ? 8 : u32Thick;
-                            astVgsDrawLine[s32PolygonCnt][j].u32Color = pst->u32Color & 0xFFFFFF;
+	                            astVgsDrawLine[s32PolygonCnt][j].u32Thick = u32Thick;
+	                            astVgsDrawLine[s32PolygonCnt][j].u32Color = pst->u32Color & 0xFFFFFF;
+	                        }
+
+	                        s32Ret = HI_MPI_VGS_AddDrawLineTaskArray(VgsHandle, &stVgsTask, astVgsDrawLine[s32PolygonCnt], pst->u32PointNum);
+	                        if (s32Ret != HI_SUCCESS) {
+	                            printf("%s %d err:HI_MPI_VGS_AddDrawLineTaskArray fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
+	                            HI_MPI_VGS_CancelJob(VgsHandle);
+	                            goto EXT_RELEASE;
+	                        }
                         }
-
-                        s32Ret = HI_MPI_VGS_AddDrawLineTaskArray(VgsHandle, &stVgsTask, astVgsDrawLine[s32PolygonCnt], pst->u32PointNum);
-                        if (s32Ret != HI_SUCCESS) {
-                            printf("%s %d err:HI_MPI_VGS_AddDrawLineTaskArray fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
-                            HI_MPI_VGS_CancelJob(VgsHandle);
-                            goto EXT_RELEASE;
+                        else {
+                        	astVgsCover[s32PolygonCnt].enCoverType = COVER_QUAD_RANGLE;
+                        	astVgsCover[s32PolygonCnt].stQuadRangle.bSolid = HI_FALSE;
+                        	astVgsCover[s32PolygonCnt].stQuadRangle.u32Thick = u32Thick;
+                        	for (j = 0; j < 4; ++j) {
+                        		astVgsCover[s32PolygonCnt].stQuadRangle.stPoint[j].s32X = (int)ALIGN_UP(pst->astPoint[j].u32X, 2);
+                        		astVgsCover[s32PolygonCnt].stQuadRangle.stPoint[j].s32Y = (int)ALIGN_UP(pst->astPoint[j].u32Y, 2);
+                        	}
+                        	astVgsCover[s32PolygonCnt].u32Color = pst->u32Color & 0xFFFFFF;
+                        	
+	                        s32Ret = HI_MPI_VGS_AddCoverTask(VgsHandle, &stVgsTask, &astVgsCover[s32PolygonCnt]);
+	                        if (s32Ret != HI_SUCCESS) {
+	                            printf("%s %d err:HI_MPI_VGS_AddCoverTask fail,Error(%#x)\n", __FUNCTION__, __LINE__, s32Ret);
+	                            HI_MPI_VGS_CancelJob(VgsHandle);
+	                            goto EXT_RELEASE;
+	                        }                        	
                         }
                     }
 
@@ -429,24 +449,29 @@ static void *osd_thread(void *arg)
                 // Cross Star
                 if (pst->u32PointNum > 0 && pst->u32PointNum <= MAX_HOTSPOT_POINT_NUM)
                 {
+                	unsigned int u32Radius = ALIGN_UP(pst->u32Radius, 2);
+                	unsigned int u32Thick = ALIGN_UP(pst->u32Thick, 2);
+
+                	u32Thick = u32Thick > 8 ? 8 : u32Thick;
+                	
                     for (j = 0; j < pst->u32PointNum; ++j) {
                         unsigned int u32X = ALIGN_UP(pst->astPoint[j].u32X, 2);
                         unsigned int u32Y = ALIGN_UP(pst->astPoint[j].u32Y, 2);
 
                         // -
-                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].stStartPoint.s32X = (int)(u32X >= 2 ? u32X - 2 : u32X);
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].stStartPoint.s32X = (int)(u32X >= u32Radius ? u32X - u32Radius : u32X);
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2].stStartPoint.s32Y = (int)u32Y;
-                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].stEndPoint.s32X = (int)(u32X + 4);
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].stEndPoint.s32X = (int)(u32X + u32Radius + 2);
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2].stEndPoint.s32Y = (int)u32Y;
-                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].u32Thick = 2;
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].u32Thick = u32Thick;
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2].u32Color = pst->u32Color[j] & 0xFFFFFF;
 
                         // |
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stStartPoint.s32X = (int)u32X;
-                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stStartPoint.s32Y = (int)(u32Y >= 2 ? u32Y -2 : u32Y);
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stStartPoint.s32Y = (int)(u32Y >= u32Radius ? u32Y - u32Radius : u32Y);
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stEndPoint.s32X = (int)u32X;
-                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stEndPoint.s32Y = (int)u32Y + 4;
-                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].u32Thick = 2;
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stEndPoint.s32Y = (int)u32Y + u32Radius + 2;
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].u32Thick = u32Thick;
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].u32Color = pst->u32Color[j] & 0xFFFFFF;
                     }
 
@@ -492,11 +517,11 @@ static void *osd_thread(void *arg)
 #endif
 
 EXT_RELEASE:
-        s32Ret = HI_MPI_VENC_SendFrame(VeChn, &stExtFrmInfo, 40);
+        /*s32Ret = HI_MPI_VENC_SendFrame(VeChn, &stExtFrmInfo, 40);
         if (HI_SUCCESS != s32Ret) {
             printf("%s %d err:HI_MPI_VENC_SendFrame fail, chn(%d),Error(%#x)\n",
                     __FUNCTION__, __LINE__, VeChn, s32Ret);
-        }
+        }*/
 
         s32Ret = HI_MPI_VPSS_ReleaseChnFrame(VpssGrp, VpssChn, &stExtFrmInfo);
         if (HI_SUCCESS != s32Ret) {
@@ -890,11 +915,14 @@ OSD_ERR_EN OSD_Set(const OSD_ST *pstOsd)
     if (OSD_POLYGON == pstOsd->enType) {
         ASSERT_PARAM(pstOsd->unData.stPolygon.u32Id >= 0 && pstOsd->unData.stPolygon.u32Id <= 4);
         ASSERT_PARAM(pstOsd->unData.stPolygon.u32PointNum <= MAX_POLYGON_POINT_NUM);
+        ASSERT_PARAM(pstOsd->unData.stPolygon.u32Thick <= 8);
         ASSERT_PARAM(pstOsd->unData.stPolygon.stText.u32LineNum <= MAX_TEXT_LINE_NUM);
     }
     else if (OSD_HOTSPOT == pstOsd->enType) {
         ASSERT_PARAM(pstOsd->unData.stHotspot.u32Id >= 5 && pstOsd->unData.stHotspot.u32Id <= 9);
         ASSERT_PARAM(pstOsd->unData.stHotspot.u32PointNum <= MAX_HOTSPOT_POINT_NUM);
+        ASSERT_PARAM(pstOsd->unData.stHotspot.u32Thick <= 8);
+        ASSERT_PARAM(pstOsd->unData.stHotspot.u32Radius <= 16);
         ASSERT_PARAM(pstOsd->unData.stHotspot.stText.u32LineNum <= MAX_TEXT_LINE_NUM);
     }
 
@@ -1005,7 +1033,9 @@ OSD_ERR_EN OSD_Dump(const OSD_ST *pstOsd)
                 u32Index += snprintf((char *)au8Buf + u32Index, size, "[%u,%u](0x%06X) ",
                         pst->astPoint[u32Tmp].u32X, pst->astPoint[u32Tmp].u32Y, pst->u32Color[u32Tmp]);
             }
-            u32Index += snprintf((char *)au8Buf + u32Index, size, "\nTextLineNum:%u\n", pst->stText.u32LineNum);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "\nThick:%u\n", pst->u32Thick);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "Radius:%u\n", pst->u32Radius);
+            u32Index += snprintf((char *)au8Buf + u32Index, size, "TextLineNum:%u\n", pst->stText.u32LineNum);
             for (u32Tmp = 0; u32Tmp < pst->stText.u32LineNum && u32Tmp < MAX_TEXT_LINE_NUM; ++u32Tmp)
             {
                 u32Index += snprintf((char *)au8Buf + u32Index, size, "Line:%d [%u,%u](0x%08X) %s\n", u32Tmp,

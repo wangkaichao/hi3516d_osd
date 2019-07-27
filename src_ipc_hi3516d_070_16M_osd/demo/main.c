@@ -321,11 +321,13 @@ static void *star_thread(void *pArg)
 
         stOsd.unData.stHotspot.u32Enable = 1;
         stOsd.unData.stHotspot.u32PointNum = 1;
+        stOsd.unData.stHotspot.u32Thick = 4;
+        stOsd.unData.stHotspot.u32Radius = 8;
         stOsd.unData.stHotspot.astPoint[0] = stPoint;
         stOsd.unData.stHotspot.u32Color[0] = COLOR_RED;    // rgb
 
         stTextPoint = stPoint;
-        stTextPoint.u32Y -= (16 + 4);
+        stTextPoint.u32Y -= (16 + stOsd.unData.stHotspot.u32Radius + 2);
         stOsd.unData.stHotspot.stText.u32LineNum = 1;
         stOsd.unData.stHotspot.stText.astStartPoint[0] = stTextPoint;
         stOsd.unData.stHotspot.stText.u32Color[0] = ARGB888_RED;  // argb
@@ -354,10 +356,15 @@ static void Sample_DisplayArea(int s32PolygonId)
 {
     //printf("%s(Pid:%d)\n", __FUNCTION__, s32PolygonId);
     OSD_ST stOsd;
-    POINT_ST astPoints[10] =
+    /*POINT_ST astPoints[10] =
     {
         {70, 10}, {100, 10}, {130, 40}, {160, 70}, {130, 100},
         {100, 130}, {70, 130}, {40, 100}, {10, 70}, {40, 40}
+    };*/
+    
+    POINT_ST astPoints[4] =
+    {
+        {30, 30},   {430, 30}, {430, 430}, {30, 430}
     };
 
     memset(&stOsd, 0, sizeof(stOsd));
@@ -371,7 +378,7 @@ static void Sample_DisplayArea(int s32PolygonId)
     memcpy(stOsd.unData.stPolygon.astPoint, astPoints, sizeof(astPoints));
     stOsd.unData.stPolygon.u32BgColor = (0x10 << 24) | COLOR_GREEN; // ARGB8888
     stOsd.unData.stPolygon.u32Color = COLOR_GREEN;
-    stOsd.unData.stPolygon.u32Thick = 0; // no bord
+    stOsd.unData.stPolygon.u32Thick = 8; // no bord
 
     OSD_Set(&stOsd);
     OSD_Dump(&stOsd);

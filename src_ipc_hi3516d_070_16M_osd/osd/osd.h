@@ -81,6 +81,8 @@ typedef struct {
 #define MAX_HOTSPOT_POINT_NUM         (8)               /**< 十字星最大上限 */
     POINT_ST        astPoint[MAX_HOTSPOT_POINT_NUM];
     unsigned int    u32Color[MAX_HOTSPOT_POINT_NUM];    /**< 边框颜色格式RGB888，不支持透明度  */
+    unsigned int    u32Thick;							/**< 十字星线宽[2, 4, 8] */
+    unsigned int    u32Radius;							/**< 十字星半径[2, 4, 8, 16] */
 
     TEXT_ST         stText;
 } HOTSPOT_ST;
