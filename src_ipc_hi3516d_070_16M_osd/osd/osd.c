@@ -517,11 +517,11 @@ static void *osd_thread(void *arg)
 #endif
 
 EXT_RELEASE:
-        /*s32Ret = HI_MPI_VENC_SendFrame(VeChn, &stExtFrmInfo, 40);
+        s32Ret = HI_MPI_VENC_SendFrame(VeChn, &stExtFrmInfo, 40);
         if (HI_SUCCESS != s32Ret) {
             printf("%s %d err:HI_MPI_VENC_SendFrame fail, chn(%d),Error(%#x)\n",
                     __FUNCTION__, __LINE__, VeChn, s32Ret);
-        }*/
+        }
 
         s32Ret = HI_MPI_VPSS_ReleaseChnFrame(VpssGrp, VpssChn, &stExtFrmInfo);
         if (HI_SUCCESS != s32Ret) {
