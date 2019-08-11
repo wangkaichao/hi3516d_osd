@@ -289,7 +289,7 @@ static void *text_thread(void *pArg)
 
         stOsd.unData.stPolygon.stText.u32LineNum = 1;
         stOsd.unData.stPolygon.stText.astStartPoint[0] = stPoint;
-        stOsd.unData.stPolygon.stText.u32Color[0] = ARGB888_BLACK;  // argb
+        stOsd.unData.stPolygon.stText.u32Color[0] = ARGB888_RED;  // argb
         snprintf((char *)stOsd.unData.stPolygon.stText.au8TextCode[0], MAX_LINE_CHAR_NUM, "ÎÂ¶È¼à¿Ø:%d", s32Text++ % 10);
 
         OSD_Set(&stOsd);
