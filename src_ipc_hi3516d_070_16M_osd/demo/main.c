@@ -276,7 +276,7 @@ static void *text_thread(void *pArg)
     int s32PolygonId = (int)pArg;
     OSD_ST stOsd;
     int s32Text = 0;
-    POINT_ST stPoint = {70, 40};
+    POINT_ST stPoint = {500, 500};
 
     printf("%s run ...\n", __FUNCTION__);
 

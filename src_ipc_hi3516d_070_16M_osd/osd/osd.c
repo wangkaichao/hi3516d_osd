@@ -572,11 +572,11 @@ static void *osd_thread(void *arg)
 #endif
 
 EXT_RELEASE:
-        /*s32Ret = HI_MPI_VENC_SendFrame(VeChn, &stExtFrmInfo, 40);
+        s32Ret = HI_MPI_VENC_SendFrame(VeChn, &stExtFrmInfo, 40);
         if (HI_SUCCESS != s32Ret) {
             printf("%s %d err:HI_MPI_VENC_SendFrame fail, chn(%d),Error(%#x)\n",
                     __FUNCTION__, __LINE__, VeChn, s32Ret);
-        }*/
+        }
 
         s32Ret = HI_MPI_VPSS_ReleaseChnFrame(VpssGrp, VpssChn, &stExtFrmInfo);
         if (HI_SUCCESS != s32Ret) {
@@ -660,6 +660,54 @@ static void osd_createText(const unsigned char *pu8Str, VGS_ADD_OSD_S *pstVgsOsd
                 fclose(fpAsc);
                 fclose(fpCn);
                 return;
+            }
+            
+            int s32FlagNew = 0, s32FlagOldY = 0, s32FlagOldX = 0;
+
+            //YUV422, 右边沿多素描一行
+            
+            // 左右
+            /*for (j = 0; j < FONT_ASCI_SIZE; j++) {
+                unsigned char *line = pu8Font + i * FONT_ASCI_SIZE + j;
+                
+                for (k = 1; k < 8; k++) {
+                    s32FlagNew = BIT_I(*line, (7 - k)) ? 1 : 0;
+                    s32FlagOldX = BIT_I(*line, (7 - (k - 1))) ? 1 : 0;
+                    
+                    if (s32FlagNew == 1 && s32FlagOldX == 0)
+                    {
+                        *line |= (1 << (7 - (k - 1)));
+                    }
+                    else if (s32FlagNew == 0 && s32FlagOldX == 1)
+                    {
+                        *line |= (1 << (7 - k));
+                        k++;
+                    }
+                }
+            }*/
+
+            //上下            
+            for (j = 1; j < FONT_ASCI_SIZE; j++) {
+                unsigned char *line = pu8Font + i * FONT_ASCI_SIZE + j;
+                unsigned char *lineOld = pu8Font + i * FONT_ASCI_SIZE + (j - 1);
+                int flag = 0;
+                
+                for (k = 0; k < 8; k++) {
+                    s32FlagNew = BIT_I(*line, (7 - k)) ? 1 : 0;
+                    s32FlagOldY = BIT_I(*lineOld, (7 - k)) ? 1 : 0;
+                    
+                    if (s32FlagNew == 1 && s32FlagOldY == 0)
+                    {
+                        *lineOld |= (1 << (7 - k));
+                    }
+                    /*else if (s32FlagNew == 0 && s32FlagOldY == 1)
+                    {
+                        *line |= (1 << (7 - k));
+                        flag = 1;
+                    }*/
+                }
+                
+                if (flag) j++;
             }
         }
         else if (ch2 >= 0xa1) {
