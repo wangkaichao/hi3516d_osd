@@ -83,6 +83,7 @@ static void     swap_sort(int *d, int len);
 static void     osd_cfg_init_default(void);
 static void *   osd_thread(void *arg);
 static void     osd_createText(const unsigned char *pu8Str, VGS_ADD_OSD_S *pstVgsOsd, HI_VOID **ppvVirtualAddr);
+static void     osd_color_patch(unsigned char *pu8Font);
 static void     osd_createPolygon(const POINT_S *pstPoint, unsigned int u32Size, VGS_ADD_OSD_S *pstVgsOsd, HI_VOID **ppvVirtualAddr);
 static HI_BOOL  osd_is_inside(const POINT_S *pstSrc, const POINT_S *pstPoint, unsigned int u32Size);
 
@@ -217,7 +218,6 @@ static void osd_cfg_init_default(void)
         gastOsd[i].unData.stHotspot.u32Id = i;
     }
 }
-
 
 static void *osd_thread(void *arg)
 {
@@ -437,11 +437,13 @@ static void *osd_thread(void *arg)
                             }
                         }
                         else {
-                            int s32ArrY[4], s32Y;
+                            int s32ArrX[4], s32ArrY[4], s32X, s32Y;
 
                             for (j = 0; j < 4; ++j) {
+                                s32ArrX[j] = (int)ALIGN_UP(pst->astPoint[j].u32X, 2);
                                 s32ArrY[j] = (int)ALIGN_UP(pst->astPoint[j].u32Y, 2);
                             }
+                            swap_sort(s32ArrX, 4);
                             swap_sort(s32ArrY, 4);
 
                             astVgsCover[s32PolygonCnt].enCoverType = COVER_QUAD_RANGLE;
@@ -450,6 +452,12 @@ static void *osd_thread(void *arg)
                             for (j = 0; j < 4; ++j) {
                                 astVgsCover[s32PolygonCnt].stQuadRangle.stPoint[j].s32X = (int)ALIGN_UP(pst->astPoint[j].u32X, 2);
                                 astVgsCover[s32PolygonCnt].stQuadRangle.stPoint[j].s32Y = (int)ALIGN_UP(pst->astPoint[j].u32Y, 2);
+
+                                //客户需求：四边行右边向外扩充2个像素
+                                s32X = (int)ALIGN_UP(pst->astPoint[j].u32X, 2);
+                                if (s32X == s32ArrX[2] || s32X == s32ArrX[3]) {
+                                    astVgsCover[s32PolygonCnt].stQuadRangle.stPoint[j].s32X += 2;
+                                }
 
                                 //客户需求：四边形底边向外扩充2个像素
                                 s32Y = (int)ALIGN_UP(pst->astPoint[j].u32Y, 2);
@@ -514,7 +522,7 @@ static void *osd_thread(void *arg)
                         unsigned int u32Y = ALIGN_UP(pst->astPoint[j].u32Y, 2);
 
                         // -
-                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].stStartPoint.s32X = (int)(u32X >= u32Radius ? u32X - u32Radius : u32X);
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2].stStartPoint.s32X = (int)(u32X >= u32Radius ? u32X - u32Radius : 0/*u32X*/);
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2].stStartPoint.s32Y = (int)u32Y;
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2].stEndPoint.s32X = (int)(u32X + u32Radius + 2);
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2].stEndPoint.s32Y = (int)u32Y;
@@ -523,7 +531,7 @@ static void *osd_thread(void *arg)
 
                         // |
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stStartPoint.s32X = (int)u32X;
-                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stStartPoint.s32Y = (int)(u32Y >= u32Radius ? u32Y - u32Radius : u32Y);
+                        astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stStartPoint.s32Y = (int)(u32Y >= u32Radius ? u32Y - u32Radius : 0/*u32Y*/);
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stEndPoint.s32X = (int)u32X;
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].stEndPoint.s32Y = (int)u32Y + u32Radius + 2;
                         astVgsDrawCrossStar[s32HotspotCnt][j * 2 + 1].u32Thick = u32Thick;
@@ -661,53 +669,12 @@ static void osd_createText(const unsigned char *pu8Str, VGS_ADD_OSD_S *pstVgsOsd
                 fclose(fpCn);
                 return;
             }
-            
-            int s32FlagNew = 0, s32FlagOldY = 0, s32FlagOldX = 0;
 
-            //YUV422, 右边沿多素描一行
-            
-            // 左右
-            /*for (j = 0; j < FONT_ASCI_SIZE; j++) {
-                unsigned char *line = pu8Font + i * FONT_ASCI_SIZE + j;
-                
-                for (k = 1; k < 8; k++) {
-                    s32FlagNew = BIT_I(*line, (7 - k)) ? 1 : 0;
-                    s32FlagOldX = BIT_I(*line, (7 - (k - 1))) ? 1 : 0;
-                    
-                    if (s32FlagNew == 1 && s32FlagOldX == 0)
-                    {
-                        *line |= (1 << (7 - (k - 1)));
-                    }
-                    else if (s32FlagNew == 0 && s32FlagOldX == 1)
-                    {
-                        *line |= (1 << (7 - k));
-                        k++;
-                    }
-                }
-            }*/
-
-            //上下            
-            for (j = 1; j < FONT_ASCI_SIZE; j++) {
-                unsigned char *line = pu8Font + i * FONT_ASCI_SIZE + j;
-                unsigned char *lineOld = pu8Font + i * FONT_ASCI_SIZE + (j - 1);
-                int flag = 0;
-                
-                for (k = 0; k < 8; k++) {
-                    s32FlagNew = BIT_I(*line, (7 - k)) ? 1 : 0;
-                    s32FlagOldY = BIT_I(*lineOld, (7 - k)) ? 1 : 0;
-                    
-                    if (s32FlagNew == 1 && s32FlagOldY == 0)
-                    {
-                        *lineOld |= (1 << (7 - k));
-                    }
-                    /*else if (s32FlagNew == 0 && s32FlagOldY == 1)
-                    {
-                        *line |= (1 << (7 - k));
-                        flag = 1;
-                    }*/
-                }
-                
-                if (flag) j++;
+            //不是白色或黑色的ASCII,上边描粗一行
+            if ((pstVgsOsd->u32BgColor & 0xFFFFFF) != 0
+                && (pstVgsOsd->u32BgColor & 0xFFFFFF) != 0xFFFFFF)
+            {
+                osd_color_patch(pu8Font + i * FONT_ASCI_SIZE);
             }
         }
         else if (ch2 >= 0xa1) {
@@ -778,6 +745,58 @@ static void osd_createText(const unsigned char *pu8Str, VGS_ADD_OSD_S *pstVgsOsd
     }
 
     free(pu8Font);
+}
+
+// ASCII 非黑色， 白色时，上边多描一个点像素
+static void osd_color_patch(unsigned char *pu8Font)
+{
+    int s32FlagNew = 0, s32FlagOldY = 0, s32FlagOldX = 0;
+    int j, k;
+
+    // 左右
+    /*for (j = 0; j < FONT_ASCI_SIZE; j++) {
+        unsigned char *line = pu8Font + j;
+
+        for (k = 1; k < 8; k++) {
+            s32FlagNew = BIT_I(*line, (7 - k)) ? 1 : 0;
+            s32FlagOldX = BIT_I(*line, (7 - (k - 1))) ? 1 : 0;
+
+            if (s32FlagNew == 1 && s32FlagOldX == 0)
+            {
+                *line |= (1 << (7 - (k - 1)));
+            }
+            else if (s32FlagNew == 0 && s32FlagOldX == 1)
+            {
+                *line |= (1 << (7 - k));
+                k++;
+            }
+        }
+    }*/
+
+    //上下
+    for (j = 1; j < FONT_ASCI_SIZE; j++) {
+        unsigned char *line = pu8Font + j;
+        unsigned char *lineOld = pu8Font + (j - 1);
+        int flag = 0;
+
+        for (k = 0; k < 8; k++) {
+            s32FlagNew = BIT_I(*line, (7 - k)) ? 1 : 0;
+            s32FlagOldY = BIT_I(*lineOld, (7 - k)) ? 1 : 0;
+
+            if (s32FlagNew == 1 && s32FlagOldY == 0)
+            {
+                *lineOld |= (1 << (7 - k));
+            }
+            /*else if (s32FlagNew == 0 && s32FlagOldY == 1)
+            {
+                *line |= (1 << (7 - k));
+                flag = 1;
+            }*/
+        }
+
+        if (flag) j++;
+    }
+
 }
 
 static void osd_createPolygon(const POINT_S *pstPoint, unsigned int u32Size, VGS_ADD_OSD_S *pstVgsOsd, HI_VOID **ppvVirtualAddr)
